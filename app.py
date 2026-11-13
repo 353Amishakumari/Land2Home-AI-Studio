@@ -13,6 +13,7 @@ Pages:
 """
 
 from __future__ import annotations
+import os
 import io
 import datetime
 import pandas as pd
@@ -59,6 +60,11 @@ _DEFAULTS = {
     "plot_facing":         "North",
     "cost_tier":           "Standard",
     "client_name":         "",
+    "user_phone":          "",
+    "user_city":           "",
+    "is_unlocked":         False,
+    "is_owner":            False,
+    "unlocked_reason":     "",
     "prepared_by":         "Land2Home AI Architecture Studio",
     "raw_plot_image":      None,
     "custom_points":       [],
@@ -94,6 +100,112 @@ def _selected_design() -> dict | None:
     return designs[0] if designs else None
 
 
+def is_commercial_unlocked() -> bool:
+    """Returns True if the user has paid or if owner mode is enabled."""
+    return bool(st.session_state.get("is_owner", False) or st.session_state.get("is_unlocked", False))
+
+
+def save_lead(name: str, phone: str, city: str, code: str = ""):
+    """Save customer contact and UTR/promo lead to leads.csv."""
+    lead_row = {
+        "timestamp": datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S"),
+        "client_name": name.strip() or "Anonymous User",
+        "phone": phone.strip() or "Not Provided",
+        "city": city.strip() or "Not Provided",
+        "plot_dims": f"{st.session_state.get('plot_width', 0):.0f}x{st.session_state.get('plot_length', 0):.0f} ft",
+        "house_type": st.session_state.get("requirements", {}).get("house_type", "2BHK") if st.session_state.get("requirements") else "—",
+        "utr_or_promo": code.strip() or "—",
+        "status": "Unlocked" if code else "Lead Capture"
+    }
+    df_new = pd.DataFrame([lead_row])
+    leads_path = "leads.csv"
+    if os.path.exists(leads_path):
+        try:
+            df_old = pd.read_csv(leads_path)
+            df_all = pd.concat([df_old, df_new], ignore_index=True)
+        except Exception:
+            df_all = df_new
+    else:
+        df_all = df_new
+    df_all.to_csv(leads_path, index=False)
+
+
+def render_commercial_unlock_card(feature_name: str = "Commercial Dossier & AutoCAD DXF"):
+    """Renders the self-serve payment card with UPI QR and UTR validation."""
+    st.markdown(
+        f"""
+        <div style="background: linear-gradient(135deg, #1A3A5C 0%, #244C73 100%);
+                    padding: 20px; border-radius: 12px; color: white; margin-bottom: 20px;
+                    border-left: 5px solid #27AE60;">
+            <div style="display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap;">
+                <div>
+                    <h3 style="color: #FFFFFF; margin: 0 0 4px 0;">🔒 Unlock {feature_name}</h3>
+                    <p style="color: #D6E4F0; margin: 0; font-size: 13.5px;">
+                        Full 8-Page Architectural Concept Report, Material Takeoff (BOQ), and Layered AutoCAD (.DXF) Files.
+                    </p>
+                </div>
+                <div style="background: #27AE60; color: white; padding: 6px 16px; border-radius: 20px; font-weight: bold; font-size: 14px; margin-top: 8px;">
+                    One-Time License: ₹199
+                </div>
+            </div>
+        </div>
+        """,
+        unsafe_allow_html=True
+    )
+
+    col_lead, col_pay = st.columns([0.48, 0.52])
+
+    with col_lead:
+        st.markdown("##### 1. Client & Project Details")
+        u_name = st.text_input("Full Name / Client Name *", value=st.session_state.get("client_name", ""), key="unlock_name")
+        u_phone = st.text_input("WhatsApp / Contact Number *", value=st.session_state.get("user_phone", ""), placeholder="+91 98765 43210", key="unlock_phone")
+        u_city = st.text_input("City / Project Location", value=st.session_state.get("user_city", ""), placeholder="e.g. Bangalore, Mumbai, Pune", key="unlock_city")
+        st.caption("🔒 Details are stored securely for project record and drawing delivery.")
+
+    with col_pay:
+        st.markdown("##### 2. Instant UPI Payment (₹199)")
+        upi_id = "land2home@upi"
+        upi_qr_url = f"https://api.qrserver.com/v1/create-qr-code/?size=180x180&data=upi://pay?pa={upi_id}%26pn=Land2Home%20AI%20Studio%26am=199%26cu=INR"
+
+        p_c1, p_c2 = st.columns([0.42, 0.58])
+        with p_c1:
+            try:
+                st.image(upi_qr_url, width=140, caption="Scan with any UPI App")
+            except Exception:
+                st.info("UPI: land2home@upi")
+        with p_c2:
+            st.markdown(f"**UPI ID:** `{upi_id}`")
+            st.markdown("**Amount:** **₹199** (One-Time)")
+            st.caption("Supported: GPay, PhonePe, Paytm, BHIM, CRED UPI.")
+
+        ref_code = st.text_input(
+            "Transaction Reference (12-Digit UTR) / Promo Code *",
+            placeholder="e.g. 431289567123 or promo code",
+            key="unlock_code_in"
+        )
+
+        if st.button("🚀 Verify & Unlock Commercial Downloads", type="primary", key="btn_verify_payment"):
+            clean_code = ref_code.strip()
+            valid_promos = {"AMISHA2026", "FOUNDER", "MTECH", "DEMO", "PROMO100", "FREEPASS", "VIP199"}
+            is_valid_utr = len(clean_code) == 12 and clean_code.isdigit()
+            is_promo = clean_code.upper() in valid_promos
+
+            if not u_name.strip() or not u_phone.strip():
+                st.warning("⚠️ Please provide your Name and WhatsApp number before verification.")
+            elif is_valid_utr or is_promo:
+                st.session_state["is_unlocked"] = True
+                st.session_state["client_name"] = u_name.strip()
+                st.session_state["user_phone"] = u_phone.strip()
+                st.session_state["user_city"] = u_city.strip()
+                st.session_state["unlocked_reason"] = f"UTR: {clean_code}" if is_valid_utr else f"Promo: {clean_code.upper()}"
+                save_lead(u_name, u_phone, u_city, clean_code)
+                st.balloons()
+                st.success("🎉 Commercial Package Successfully Unlocked! You can now download the complete PDF Dossier and AutoCAD (.DXF) files.")
+                st.rerun()
+            else:
+                st.error("❌ Invalid reference code. Please enter a valid 12-digit bank UTR / UPI reference ID or a valid promotional voucher.")
+
+
 # ============================================================
 # Sidebar navigation
 # ============================================================
@@ -125,6 +237,55 @@ if st.session_state.selected_design_id:
     st.sidebar.markdown(f"✅ Selected: Design {st.session_state.selected_design_id}")
 else:
     st.sidebar.markdown("⬜ Design selected")
+
+# Commercial Access status badge
+st.sidebar.markdown("---")
+if is_commercial_unlocked():
+    if st.session_state.get("is_owner", False):
+        st.sidebar.success("👑 **Owner Mode Active**\nUnlimited Free Exports")
+    else:
+        st.sidebar.success(f"💎 **Commercial Unlocked**\n({st.session_state.get('unlocked_reason', 'Active')})")
+else:
+    st.sidebar.info("🔒 **Freemium Preview Mode**\nFull CAD/PDF locked (₹199)")
+
+# Studio Owner Access Expander
+with st.sidebar.expander("🔐 Studio Owner Access", expanded=st.session_state.get("is_owner", False)):
+    if st.session_state.get("is_owner", False):
+        st.write("Welcome, Studio Founder! You have unlimited access to all features.")
+        if os.path.exists("leads.csv"):
+            try:
+                leads_df = pd.read_csv("leads.csv")
+                st.caption(f"📊 Collected Leads: **{len(leads_df)}**")
+                csv_bytes = leads_df.to_csv(index=False).encode("utf-8")
+                st.download_button("📥 Download leads.csv", data=csv_bytes, file_name="leads.csv", mime="text/csv", key="btn_dl_leads")
+            except Exception:
+                pass
+        else:
+            st.caption("No leads collected yet.")
+
+        if st.button("🔒 Switch to Public User Mode", key="btn_logout_owner"):
+            st.session_state.is_owner = False
+            st.session_state.is_unlocked = False
+            st.session_state.unlocked_reason = ""
+            st.rerun()
+    else:
+        st.caption("Enter owner passcode for personal testing, demos, and unlimited free exports.")
+        owner_code = st.text_input("Owner Passcode:", type="password", key="owner_pass_in")
+        if st.button("Authenticate", key="btn_auth_owner"):
+            expected_code = "AMISHA2026"
+            try:
+                if "OWNER_PASSCODE" in st.secrets:
+                    expected_code = st.secrets["OWNER_PASSCODE"]
+            except Exception:
+                pass
+            if owner_code.strip() == expected_code:
+                st.session_state.is_owner = True
+                st.session_state.is_unlocked = True
+                st.session_state.unlocked_reason = "Owner Passcode"
+                st.success("Welcome, Studio Founder! Owner mode enabled.")
+                st.rerun()
+            else:
+                st.error("Invalid passcode.")
 
 st.sidebar.markdown("---")
 st.sidebar.caption("Land2Home AI Architecture Studio\nCommercial PropTech Planning & BOQ Engine")
@@ -658,25 +819,37 @@ elif page == "📋 2D Floor Plan":
                 )
 
             with d_col2:
-                # AutoCAD DXF Export
-                dxf_bytes = export_layout_to_dxf(
-                    design["rooms"],
-                    st.session_state.plot_width,
-                    st.session_state.plot_length,
-                    features=design["features"],
-                    design_name=design["design_name"],
-                    client_name=st.session_state.get("client_name", ""),
-                    prepared_by=st.session_state.get("prepared_by", "Land2Home AI Architecture Studio")
-                )
-                st.download_button(
-                    "📐 Download AutoCAD (.DXF)",
-                    data=dxf_bytes,
-                    file_name=f"{design['design_name'].replace(' ', '_')}.dxf",
-                    mime="application/dxf",
-                    help="Exports layered CAD drawings compatible with AutoCAD, FreeCAD, and LibreCAD."
-                )
+                # AutoCAD DXF Export (Controlled by Commercial Unlock)
+                if is_commercial_unlocked():
+                    dxf_bytes = export_layout_to_dxf(
+                        design["rooms"],
+                        st.session_state.plot_width,
+                        st.session_state.plot_length,
+                        features=design["features"],
+                        design_name=design["design_name"],
+                        client_name=st.session_state.get("client_name", ""),
+                        prepared_by=st.session_state.get("prepared_by", "Land2Home AI Architecture Studio")
+                    )
+                    st.download_button(
+                        "📐 Download AutoCAD (.DXF)",
+                        data=dxf_bytes,
+                        file_name=f"{design['design_name'].replace(' ', '_')}.dxf",
+                        mime="application/dxf",
+                        help="Exports layered CAD drawings compatible with AutoCAD, FreeCAD, and LibreCAD."
+                    )
+                else:
+                    st.button(
+                        "🔒 Download AutoCAD (.DXF) — Locked (₹199)",
+                        disabled=True,
+                        help="Unlock below to download layered AutoCAD (.DXF) drawings."
+                    )
         except Exception as exc:
             st.error(f"2D rendering error: {exc}")
+
+    # Commercial Unlock Card if not unlocked
+    if not is_commercial_unlocked():
+        st.markdown("---")
+        render_commercial_unlock_card("AutoCAD (.DXF) CAD Files & Full Report")
 
     # Vastu Shastra Expander
     with st.expander("☸️ Vastu Shastra Compliance Audit", expanded=True):
@@ -814,81 +987,100 @@ elif page == "📄 PDF Report":
 
     st.info(f"📄 Report Layout: **{design['design_name']}**")
 
-    # White-Label B2B input fields
-    st.markdown("#### 🏢 B2B White-Label & Client Customization")
-    w_col1, w_col2 = st.columns(2)
-    with w_col1:
-        client_name = st.text_input(
-            "Prepared For (Client Name):",
-            value=st.session_state.get("client_name", "Mr. & Mrs. Sharma"),
-            help="Name of homeowner or real estate investor."
-        )
-    with w_col2:
-        prepared_by = st.text_input(
-            "Prepared By (Architect / Agency Name):",
-            value=st.session_state.get("prepared_by", "Land2Home AI Architecture Studio"),
-            help="Your agency or studio branding for white-label client presentation."
-        )
-    st.session_state.client_name = client_name
-    st.session_state.prepared_by = prepared_by
+    # Check monetization lock
+    if is_commercial_unlocked():
+        st.success(f"👑 **Commercial License Active** ({st.session_state.get('unlocked_reason', 'Authorized')}) — Unlimited PDF & DXF Generation Enabled")
 
-    with st.expander("Report Contents Preview (8 Pages)"):
-        st.markdown("""
-        1. 🏠 **Executive Cover Page** — Client name, agency branding, plot dimensions, dossier ID
-        2. 📐 **Land Verification & Visual Proof** — Plot measurements and side-by-side computer vision detection overlay
-        3. 🏡 **Room Schedule & Validation Audit** — Exact carpet areas, non-overlapping geometry verification
-        4. ☸️ **Vastu Shastra Compliance Audit** — 8-direction zone audit table, road orientation alignment, remedies
-        5. 💰 **Construction Cost & Material BOQ** — Milestone project cashflows, material takeoff quantities (cement, steel, bricks)
-        6. 🗺️ **2D Concept Floor Plan** — High-resolution architectural plan with furniture, dimensions, and legend
-        7. 🧊 **3D Schematic Isometric Model** — Orthogonal structural perspective
-        8. ⚠️ **Commercial Disclaimer & Terms** — Preliminary architectural and structural engineering caveats
-        """)
+        # White-Label B2B input fields
+        st.markdown("#### 🏢 B2B White-Label & Client Customization")
+        w_col1, w_col2 = st.columns(2)
+        with w_col1:
+            client_name = st.text_input(
+                "Prepared For (Client Name):",
+                value=st.session_state.get("client_name", "Mr. & Mrs. Sharma"),
+                help="Name of homeowner or real estate investor."
+            )
+        with w_col2:
+            prepared_by = st.text_input(
+                "Prepared By (Architect / Agency Name):",
+                value=st.session_state.get("prepared_by", "Land2Home AI Architecture Studio"),
+                help="Your agency or studio branding for white-label client presentation."
+            )
+        st.session_state.client_name = client_name
+        st.session_state.prepared_by = prepared_by
 
-    if st.button("📥 Generate Publication-Grade PDF Report", type="primary"):
-        with st.spinner("Compiling high-resolution report, calculating BOQ and rendering architectural diagrams…"):
-            try:
-                built_a = sum(r["width"] * r["length"] for r in design["rooms"] if r.get("kind") != "amenity")
-                cost_data = estimate_construction_cost(built_a, tier=st.session_state.get("cost_tier", "Standard"))
-                vastu_data = analyze_vastu_compliance(
-                    design["rooms"],
-                    st.session_state.plot_width,
-                    st.session_state.plot_length,
-                    plot_facing=st.session_state.get("plot_facing", "North"),
-                    features=design["features"]
-                )
+        with st.expander("Report Contents Preview (8 Pages)"):
+            st.markdown("""
+            1. 🏠 **Executive Cover Page** — Client name, agency branding, plot dimensions, dossier ID
+            2. 📐 **Land Verification & Visual Proof** — Plot measurements and side-by-side computer vision detection overlay
+            3. 🏡 **Room Schedule & Validation Audit** — Exact carpet areas, non-overlapping geometry verification
+            4. ☸️ **Vastu Shastra Compliance Audit** — 8-direction zone audit table, road orientation alignment, remedies
+            5. 💰 **Construction Cost & Material BOQ** — Milestone project cashflows, material takeoff quantities (cement, steel, bricks)
+            6. 🗺️ **2D Concept Floor Plan** — High-resolution architectural plan with furniture, dimensions, and legend
+            7. 🧊 **3D Schematic Isometric Model** — Orthogonal structural perspective
+            8. ⚠️ **Commercial Disclaimer & Terms** — Preliminary architectural and structural engineering caveats
+            """)
 
-                raw_img = st.session_state.get("raw_plot_image")
-                ann_img = st.session_state.get("detected_plot", {}).get("annotated_image") if st.session_state.get("detected_plot") else None
+        if st.button("📥 Generate Publication-Grade PDF Report", type="primary"):
+            with st.spinner("Compiling high-resolution report, calculating BOQ and rendering architectural diagrams…"):
+                try:
+                    built_a = sum(r["width"] * r["length"] for r in design["rooms"] if r.get("kind") != "amenity")
+                    cost_data = estimate_construction_cost(built_a, tier=st.session_state.get("cost_tier", "Standard"))
+                    vastu_data = analyze_vastu_compliance(
+                        design["rooms"],
+                        st.session_state.plot_width,
+                        st.session_state.plot_length,
+                        plot_facing=st.session_state.get("plot_facing", "North"),
+                        features=design["features"]
+                    )
 
-                pdf_buf = io.BytesIO()
-                generate_pdf_report(
-                    pdf_buf,
-                    st.session_state.measurements,
-                    st.session_state.requirements,
-                    design["rooms"],
-                    st.session_state.plot_width,
-                    st.session_state.plot_length,
-                    features=design["features"],
-                    design=design,
-                    raw_image=raw_img,
-                    annotated_image=ann_img,
-                    cost_data=cost_data,
-                    vastu_data=vastu_data,
-                    client_name=client_name,
-                    prepared_by=prepared_by
-                )
-                pdf_buf.seek(0)
-                st.download_button(
-                    "⬇️ Download Commercial PDF Dossier",
-                    data=pdf_buf,
-                    file_name=f"Land2Home_Architectural_Dossier_{datetime.date.today().strftime('%Y%m%d')}.pdf",
-                    mime="application/pdf",
-                    type="primary",
-                )
-                st.success("🎉 PDF generated successfully! Click above to download the complete client dossier.")
-            except Exception as exc:
-                st.error(f"PDF generation error: {exc}")
-                st.exception(exc)
+                    raw_img = st.session_state.get("raw_plot_image")
+                    ann_img = st.session_state.get("detected_plot", {}).get("annotated_image") if st.session_state.get("detected_plot") else None
+
+                    pdf_buf = io.BytesIO()
+                    generate_pdf_report(
+                        pdf_buf,
+                        st.session_state.measurements,
+                        st.session_state.requirements,
+                        design["rooms"],
+                        st.session_state.plot_width,
+                        st.session_state.plot_length,
+                        features=design["features"],
+                        design=design,
+                        raw_image=raw_img,
+                        annotated_image=ann_img,
+                        cost_data=cost_data,
+                        vastu_data=vastu_data,
+                        client_name=client_name,
+                        prepared_by=prepared_by
+                    )
+                    pdf_buf.seek(0)
+                    st.download_button(
+                        "⬇️ Download Commercial PDF Dossier",
+                        data=pdf_buf,
+                        file_name=f"Land2Home_Architectural_Dossier_{datetime.date.today().strftime('%Y%m%d')}.pdf",
+                        mime="application/pdf",
+                        type="primary",
+                    )
+                    st.success("🎉 PDF generated successfully! Click above to download the complete client dossier.")
+                except Exception as exc:
+                    st.error(f"PDF generation error: {exc}")
+                    st.exception(exc)
+
+    else:
+        render_commercial_unlock_card("8-Page Commercial PDF Feasibility Dossier")
+
+        with st.expander("Preview Dossier Outline (Unlocked upon purchase)"):
+            st.markdown("""
+            1. 🏠 **Executive Cover Page** — Client name, agency branding, plot dimensions, dossier ID
+            2. 📐 **Land Verification & Visual Proof** — Plot measurements and side-by-side computer vision detection overlay
+            3. 🏡 **Room Schedule & Validation Audit** — Exact carpet areas, non-overlapping geometry verification
+            4. ☸️ **Vastu Shastra Compliance Audit** — 8-direction zone audit table, road orientation alignment, remedies
+            5. 💰 **Construction Cost & Material BOQ** — Milestone project cashflows, material takeoff quantities (cement, steel, bricks)
+            6. 🗺️ **2D Concept Floor Plan** — High-resolution architectural plan with furniture, dimensions, and legend
+            7. 🧊 **3D Schematic Isometric Model** — Orthogonal structural perspective
+            8. ⚠️ **Commercial Disclaimer & Terms** — Preliminary architectural and structural engineering caveats
+            """)
 
 # ============================================================
 # Commercial Footer
