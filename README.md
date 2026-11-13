@@ -1,11 +1,14 @@
 # 🏠 Land2Home AI Architecture Studio
 ### Intelligent Residential Concept Planning, Computer Vision Land Detection, Vastu Compliance & Construction BOQ Engine
 
-[![Streamlit App](https://static.streamlit.io/badges/streamlit_badge_black_white.svg)](https://streamlit.io/)
+[![Streamlit App](https://static.streamlit.io/badges/streamlit_badge_black_white.svg)](https://land2home-ai-studio-jtvtkxuc9xzjvxy7qevkb8.streamlit.app/)
 [![Python 3.10+](https://img.shields.io/badge/python-3.10+-blue.svg)](https://www.python.org/downloads/)
 [![License: MIT](https://img.shields.io/badge/License-MIT-green.svg)](LICENSE)
 [![OpenCV Headless](https://img.shields.io/badge/OpenCV-Headless-red.svg)](https://opencv.org/)
 [![AutoCAD DXF](https://img.shields.io/badge/AutoCAD-DXF%20R2010-orange.svg)](https://ezdxf.readthedocs.io/)
+
+> 🚀 **Live Web App:** Experience the full interactive PropTech platform live:  
+> 👉 **[Launch Land2Home Live App](https://land2home-ai-studio-jtvtkxuc9xzjvxy7qevkb8.streamlit.app/)**
 
 **Land2Home** is a commercial PropTech architectural feasibility and generative space-planning platform. It bridges the gap between raw land parcels and build-ready residential concepts by combining **OpenCV computer vision**, **computational geometry (Shapely)**, **traditional Vedic Vastu Shastra rules**, and **milestone-based construction cost estimation (BOQ)** into a single unified workflow.
 
