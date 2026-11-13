@@ -164,19 +164,50 @@ def render_commercial_unlock_card(feature_name: str = "Commercial Dossier & Auto
 
     with col_pay:
         st.markdown("##### 2. Instant UPI Payment (₹199)")
-        upi_id = "land2home@upi"
-        upi_qr_url = f"https://api.qrserver.com/v1/create-qr-code/?size=180x180&data=upi://pay?pa={upi_id}%26pn=Land2Home%20AI%20Studio%26am=199%26cu=INR"
 
-        p_c1, p_c2 = st.columns([0.42, 0.58])
+        # --- Merchant UPI configuration -----------------------------------------
+        # Real UPI ID from PhonePe (Kotak Bank ×0608)
+        # Override via st.secrets["MERCHANT_UPI_ID"] if configured in secrets.toml
+        try:
+            upi_id = st.secrets.get("MERCHANT_UPI_ID", "7643897910@ybl")
+        except Exception:
+            upi_id = "7643897910@ybl"
+
+        # NPCI-compliant UPI deep-link URI
+        upi_uri = (
+            f"upi://pay?pa={upi_id}"
+            f"&pn=Amisha%20Kumari"
+            f"&am=199.00"
+            f"&cu=INR"
+            f"&tn=Land2Home%20Report"
+        )
+
+        # High-contrast scannable QR (300×300 with 4-module quiet zone, black on white)
+        upi_qr_url = (
+            f"https://api.qrserver.com/v1/create-qr-code/"
+            f"?size=300x300&margin=16&qzone=4&color=000000&bgcolor=ffffff"
+            f"&data={upi_uri.replace('&', '%26')}"
+        )
+
+        p_c1, p_c2 = st.columns([0.46, 0.54])
         with p_c1:
-            try:
-                st.image(upi_qr_url, width=140, caption="Scan with any UPI App")
-            except Exception:
-                st.info("UPI: land2home@upi")
+            # Check if a local QR asset exists (placed in repo as assets/my_upi_qr.png)
+            import os
+            local_qr = "assets/my_upi_qr.png"
+            if os.path.exists(local_qr):
+                st.image(local_qr, width=160, caption="Scan to Pay ₹199")
+            else:
+                try:
+                    st.image(upi_qr_url, width=160, caption="Scan with any UPI App")
+                except Exception:
+                    st.info(f"UPI: {upi_id}")
+
         with p_c2:
-            st.markdown(f"**UPI ID:** `{upi_id}`")
-            st.markdown("**Amount:** **₹199** (One-Time)")
-            st.caption("Supported: GPay, PhonePe, Paytm, BHIM, CRED UPI.")
+            st.markdown("**UPI ID (copy & paste):**")
+            st.code(upi_id, language=None)
+            st.markdown("**Amount:** **₹199** *(One-Time License)*")
+            st.caption("Works with: GPay · PhonePe · Paytm · BHIM · CRED")
+            st.caption("After payment, enter your 12-digit UTR below.")
 
         ref_code = st.text_input(
             "Transaction Reference (12-Digit UTR) / Promo Code *",
@@ -191,7 +222,7 @@ def render_commercial_unlock_card(feature_name: str = "Commercial Dossier & Auto
             is_promo = clean_code.upper() in valid_promos
 
             if not u_name.strip() or not u_phone.strip():
-                st.warning("⚠️ Please provide your Name and WhatsApp number before verification.")
+                st.warning("Please provide your Name and WhatsApp number before verification.")
             elif is_valid_utr or is_promo:
                 st.session_state["is_unlocked"] = True
                 st.session_state["client_name"] = u_name.strip()
@@ -200,10 +231,10 @@ def render_commercial_unlock_card(feature_name: str = "Commercial Dossier & Auto
                 st.session_state["unlocked_reason"] = f"UTR: {clean_code}" if is_valid_utr else f"Promo: {clean_code.upper()}"
                 save_lead(u_name, u_phone, u_city, clean_code)
                 st.balloons()
-                st.success("🎉 Commercial Package Successfully Unlocked! You can now download the complete PDF Dossier and AutoCAD (.DXF) files.")
+                st.success("Commercial Package Successfully Unlocked! You can now download the complete PDF Dossier and AutoCAD (.DXF) files.")
                 st.rerun()
             else:
-                st.error("❌ Invalid reference code. Please enter a valid 12-digit bank UTR / UPI reference ID or a valid promotional voucher.")
+                st.error("Invalid reference code. Please enter a valid 12-digit bank UTR / UPI reference ID or a valid promotional voucher.")
 
 
 # ============================================================

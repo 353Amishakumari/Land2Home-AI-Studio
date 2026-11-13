@@ -10,9 +10,10 @@ env/
 venv/
 ENV/
 
-# Output files
+# Output files (generated renders — excluded from repo)
 *.pdf
 *.png
+!assets/my_upi_qr.png
 *.dxf
 
 # Customer data (leads)

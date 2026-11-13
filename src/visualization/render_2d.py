@@ -4,12 +4,21 @@ Land2Home — Professional 2D Floor-Plan Renderer
 
 Produces an architectural concept drawing with:
   • Colour-coded rooms with name / dimension / area labels
-  • Door symbols (gap + quarter-circle swing arc)
-  • Window symbols (triple parallel lines on walls)
+  • Door symbols (gap + quarter-circle swing arc) — adjacency-aware
+  • Window symbols (triple parallel lines on walls) — collision-safe
   • Schematic furniture (beds, sofa, dining table, kitchen counter, WC/basin)
   • North arrow, road label, main-entrance arrow
   • Overall plot dimension annotations
   • Room colour legend
+
+Architectural rules enforced at render time
+-------------------------------------------
+1. Bedroom / Kitchen / Store / Bathroom doors are rerouted to the wall that
+   actually touches a circulation space (Passage, Corridor, Living, Dining).
+   They are NEVER drawn through another bedroom or bathroom.
+2. Windows are suppressed on shared interior walls that also carry a door,
+   and must maintain ≥ 1.5 ft clearance from any door edge.
+3. Door swing arcs are clamped to stay fully inside the host room's bounds.
 """
 
 from __future__ import annotations
@@ -22,6 +31,146 @@ from matplotlib.patches import Rectangle, FancyArrowPatch, Arc, Wedge
 from matplotlib.lines import Line2D
 
 from src.visualization.colors import get_room_color, LEGEND_ENTRIES, ROOM_EDGE_COLOR, PLOT_EDGE_COLOR
+
+
+# ---------------------------------------------------------------------------
+# Circulation-space name fragments (doors should open toward these)
+# ---------------------------------------------------------------------------
+_CIRCULATION_KEYWORDS = (
+    "passage", "corridor", "living", "dining", "hall", "lobby", "foyer",
+    "open living",
+)
+
+_PRIVATE_KEYWORDS = (
+    "bathroom", "toilet", "wc", "store", "staircase",
+)
+
+
+# ---------------------------------------------------------------------------
+# Adjacency helpers
+# ---------------------------------------------------------------------------
+
+def _bbox(room: dict) -> tuple[float, float, float, float]:
+    """Return (x0, y0, x1, y1) bounding box."""
+    x, y, w, h = room["x"], room["y"], room["width"], room["length"]
+    return x, y, x + w, y + h
+
+
+def _shared_wall(r1: dict, r2: dict, tol: float = 0.15) -> str | None:
+    """
+    Return the wall name of r1 that is shared with r2, or None.
+    Two rooms share a wall when their bounding boxes touch along that edge
+    and their transverse spans overlap by at least tol feet.
+    """
+    x0a, y0a, x1a, y1a = _bbox(r1)
+    x0b, y0b, x1b, y1b = _bbox(r2)
+
+    if abs(y0a - y1b) < tol and min(x1a, x1b) - max(x0a, x0b) >= tol:
+        return "south"
+    if abs(y1a - y0b) < tol and min(x1a, x1b) - max(x0a, x0b) >= tol:
+        return "north"
+    if abs(x0a - x1b) < tol and min(y1a, y1b) - max(y0a, y0b) >= tol:
+        return "west"
+    if abs(x1a - x0b) < tol and min(y1a, y1b) - max(y0a, y0b) >= tol:
+        return "east"
+    return None
+
+
+def _is_circulation(name: str) -> bool:
+    low = name.lower()
+    return any(k in low for k in _CIRCULATION_KEYWORDS)
+
+
+def _is_private(name: str) -> bool:
+    low = name.lower()
+    return any(k in low for k in _PRIVATE_KEYWORDS)
+
+
+def _wall_neighbor(room: dict, wall: str, all_rooms: list[dict]) -> dict | None:
+    """Return the first room sharing `wall` of `room`, or None."""
+    for other in all_rooms:
+        if other is room:
+            continue
+        if _shared_wall(room, other) == wall:
+            return other
+    return None
+
+
+def _opposite_wall(wall: str) -> str:
+    return {"south": "north", "north": "south", "east": "west", "west": "east"}[wall]
+
+
+# ---------------------------------------------------------------------------
+# Door re-routing: pick the best wall for a door to open into circulation
+# ---------------------------------------------------------------------------
+
+def _best_door_wall(room: dict, preferred_wall: str, all_rooms: list[dict]) -> str:
+    """
+    Return the wall where the door should be drawn.
+
+    Priority:
+      1. Preferred wall if it faces a circulation space.
+      2. Any other wall that faces a circulation space.
+      3. Preferred wall if it faces a non-private room.
+      4. Fall back to preferred wall unchanged.
+    """
+    seen: set[str] = set()
+    walls_order = []
+    for w in [preferred_wall, "south", "north", "east", "west"]:
+        if w not in seen:
+            walls_order.append(w)
+            seen.add(w)
+
+    for wall in walls_order:
+        neighbor = _wall_neighbor(room, wall, all_rooms)
+        if neighbor is None and wall == preferred_wall:
+            return wall          # exterior — keep as preferred
+        if neighbor is not None and _is_circulation(neighbor["name"]):
+            return wall
+
+    for wall in walls_order:
+        neighbor = _wall_neighbor(room, wall, all_rooms)
+        if neighbor is None or not _is_private(neighbor["name"]):
+            return wall
+
+    return preferred_wall
+
+
+# ---------------------------------------------------------------------------
+# Window safety check
+# ---------------------------------------------------------------------------
+
+def _window_is_safe(room: dict, wall: str, offset_pct: float,
+                    win_width: float, all_rooms: list[dict],
+                    clearance: float = 1.5) -> bool:
+    """
+    Return False when the window must be suppressed:
+      a) Wall is shared with another room AND a door already sits on it.
+      b) A door on the same exterior wall is within `clearance` feet.
+    """
+    rw, rh = room["width"], room["length"]
+    span = rw if wall in ("south", "north") else rh
+
+    w_start = span * offset_pct - win_width / 2
+    w_end   = span * offset_pct + win_width / 2
+
+    wall_is_interior = _wall_neighbor(room, wall, all_rooms) is not None
+
+    for door in room.get("doors", []):
+        if door.get("wall") != wall:
+            continue
+        d_start = span * door.get("offset_pct", 0.3)
+        d_end   = d_start + door.get("width_ft", 3.0)
+
+        if wall_is_interior:
+            return False        # never put a window on a shared wall with a door
+
+        gap_right = w_start - d_end
+        gap_left  = d_start - w_end
+        if gap_right < clearance and gap_left < clearance:
+            return False
+
+    return True
 
 
 # ---------------------------------------------------------------------------
@@ -58,15 +207,15 @@ def create_2d_floorplan(rooms: list[dict],
     for item in all_items:
         _draw_room(ax, item)
 
-    # ---- Draw doors ----
+    # ---- Draw doors (adjacency-aware) ----
     for item in all_items:
         for door in item.get("doors", []):
-            _draw_door(ax, item, door)
+            _draw_door(ax, item, door, all_items)
 
-    # ---- Draw windows ----
+    # ---- Draw windows (collision-safe) ----
     for item in all_items:
         for win in item.get("windows", []):
-            _draw_window(ax, item, win)
+            _draw_window(ax, item, win, all_items)
 
     # ---- Draw furniture ----
     for item in rooms:
@@ -116,14 +265,12 @@ def _draw_room(ax: plt.Axes, item: dict) -> None:
                             facecolor=color, edgecolor=edge_color,
                             linewidth=lw, alpha=0.90, zorder=2))
 
-    # Label — multi-line: name / dims / area
     cx, cy = x + w / 2, y + h / 2
     area   = w * h
     name   = item["name"]
     dims   = f"{w:.1f} × {h:.1f} ft"
     area_s = f"{area:.0f} sq.ft"
 
-    # Font size scales with room size (clamped 6–9 pt)
     fs_name = _clamp(min(w, h) * 0.55, 6.0, 9.0)
     fs_dim  = _clamp(fs_name * 0.78, 5.0, 7.5)
 
@@ -139,61 +286,91 @@ def _draw_room(ax: plt.Axes, item: dict) -> None:
 
 
 # ---------------------------------------------------------------------------
-# Door symbol
+# Door symbol — adjacency-aware wall selection + clipped swing arc
 # ---------------------------------------------------------------------------
 
-def _draw_door(ax: plt.Axes, room: dict, door: dict) -> None:
+def _draw_door(ax: plt.Axes, room: dict, door: dict,
+               all_rooms: list[dict] | None = None) -> None:
     x, y, w, h = room["x"], room["y"], room["width"], room["length"]
-    wall   = door.get("wall", "south")
-    offset = door.get("offset_pct", 0.3)
-    dw     = door.get("width_ft", 3.0)
+    pref_wall  = door.get("wall", "south")
+    offset     = door.get("offset_pct", 0.3)
+    dw         = door.get("width_ft", 3.0)
 
-    # Hinge position and swing arc angle
+    # Adjacency-aware wall selection
+    wall = _best_door_wall(room, pref_wall, all_rooms) if all_rooms else pref_wall
+
+    # Hinge position — clamp so door leaf stays within room span
     if wall == "south":
-        hx, hy = x + w * offset, y
-        angle_start, angle_end = 0, 90
+        hx = _clamp(x + w * offset, x, x + w - dw)
+        hy = y
         line = [(hx, hy), (hx + dw, hy)]
         arc_center = (hx, hy)
-    elif wall == "north":
-        hx, hy = x + w * offset, y + h
-        angle_start, angle_end = 270, 360
-        line = [(hx, hy), (hx + dw, hy)]
-        arc_center = (hx, hy)
-    elif wall == "west":
-        hx, hy = x, y + h * offset
-        angle_start, angle_end = 270, 360
-        line = [(hx, hy), (hx, hy + dw)]
-        arc_center = (hx, hy)
-    else:  # east
-        hx, hy = x + w, y + h * offset
-        angle_start, angle_end = 90, 180
-        line = [(hx, hy), (hx, hy + dw)]
-        arc_center = (hx, hy)
+        a1, a2 = 0, 90          # swing northward into room
 
-    # White gap (erases wall line at door position)
+    elif wall == "north":
+        hx = _clamp(x + w * offset, x, x + w - dw)
+        hy = y + h
+        line = [(hx, hy), (hx + dw, hy)]
+        arc_center = (hx, hy)
+        # Flip hinge to right side when too close to right edge → swing leftward
+        if hx + dw > x + w:
+            hx = _clamp(x + w - dw, x, x + w - dw)
+            arc_center = (hx + dw, hy)
+            a1, a2 = 270, 360
+        else:
+            a1, a2 = 180, 270   # swing southward into room
+
+    elif wall == "west":
+        hx = x
+        hy = _clamp(y + h * offset, y, y + h - dw)
+        line = [(hx, hy), (hx, hy + dw)]
+        arc_center = (hx, hy)
+        a1, a2 = 270, 360       # swing eastward into room
+
+    else:  # east
+        hx = x + w
+        hy = _clamp(y + h * offset, y, y + h - dw)
+        line = [(hx, hy), (hx, hy + dw)]
+        arc_center = (hx, hy)
+        a1, a2 = 90, 180        # swing westward into room
+
+    # White gap erases wall line at door position
     ax.plot([line[0][0], line[1][0]], [line[0][1], line[1][1]],
             color="#F8F8F4", linewidth=4.5, zorder=6, solid_capstyle="butt")
 
-    # Door leaf (thin line) and swing arc
+    # Door leaf
     ax.plot([line[0][0], line[1][0]], [line[0][1], line[1][1]],
             color="#8B4513", linewidth=1.0, zorder=7)
 
+    # Swing arc
     arc = Arc(arc_center, dw * 2, dw * 2, angle=0,
-              theta1=angle_start, theta2=angle_end,
+              theta1=a1, theta2=a2,
               color="#8B4513", linewidth=0.8, linestyle="--", zorder=7)
     ax.add_patch(arc)
 
 
 # ---------------------------------------------------------------------------
-# Window symbol  (triple parallel lines)
+# Window symbol (triple parallel lines) — collision-safe
 # ---------------------------------------------------------------------------
 
-def _draw_window(ax: plt.Axes, room: dict, win: dict) -> None:
+def _draw_window(ax: plt.Axes, room: dict, win: dict,
+                 all_rooms: list[dict] | None = None) -> None:
     x, y, w, h = room["x"], room["y"], room["width"], room["length"]
     wall   = win.get("wall", "south")
     offset = win.get("offset_pct", 0.5)
     ww     = min(win.get("width_ft", 3.5), 5.0)
     gap    = 0.18   # spacing between the 3 lines
+
+    # Safety check — suppress or redirect window if it clashes with a door
+    if all_rooms:
+        if not _window_is_safe(room, wall, offset, ww, all_rooms):
+            # Try the opposite wall only if it is exterior
+            alt_wall = _opposite_wall(wall)
+            if (_wall_neighbor(room, alt_wall, all_rooms) is None
+                    and _window_is_safe(room, alt_wall, offset, ww, all_rooms)):
+                wall = alt_wall
+            else:
+                return   # suppress window rather than draw it incorrectly
 
     if wall in ("south", "north"):
         wy = y if wall == "south" else y + h
@@ -236,24 +413,19 @@ def _draw_furniture(ax: plt.Axes, room: dict) -> None:
 def _draw_bed(ax, rx, ry, rw, rh):
     bw = rw * 0.70; bh = rh * 0.55
     bx = rx + (rw - bw) / 2; by = ry + rh * 0.25
-    # Bed frame
     ax.add_patch(Rectangle((bx, by), bw, bh,
                             fc="#B0C4DE", ec="#4682B4", lw=0.8, alpha=0.7, zorder=3))
-    # Pillow band
     ax.add_patch(Rectangle((bx + 0.3, by + bh * 0.70), bw - 0.6, bh * 0.25,
                             fc="white", ec="#888", lw=0.5, alpha=0.8, zorder=4))
 
 
 def _draw_sofa(ax, rx, ry, rw, rh):
-    # Sofa along south wall
     sw = min(rw * 0.65, 10.0); sh = min(rh * 0.28, 4.0)
     sx = rx + (rw - sw) / 2; sy = ry + rh * 0.08
     ax.add_patch(Rectangle((sx, sy), sw, sh,
                             fc="#D2B48C", ec="#8B4513", lw=0.8, alpha=0.7, zorder=3))
-    # Sofa back
     ax.add_patch(Rectangle((sx, sy + sh * 0.70), sw, sh * 0.30,
                             fc="#C4A882", ec="#8B4513", lw=0.5, alpha=0.8, zorder=4))
-    # Coffee table
     ctw = sw * 0.40; cth = rh * 0.14
     ctx = rx + (rw - ctw) / 2; cty = sy + sh + rh * 0.06
     ax.add_patch(Rectangle((ctx, cty), ctw, cth,
@@ -261,12 +433,10 @@ def _draw_sofa(ax, rx, ry, rw, rh):
 
 
 def _draw_dining(ax, rx, ry, rw, rh):
-    # Table + chairs
     tw = min(rw * 0.55, 7.0); th = min(rh * 0.55, 5.0)
     tx = rx + (rw - tw) / 2; ty = ry + (rh - th) / 2
     ax.add_patch(Rectangle((tx, ty), tw, th,
                             fc="#F5DEB3", ec="#8B4513", lw=0.8, alpha=0.80, zorder=3))
-    # Chairs (circles)
     r_chair = min(0.9, tw * 0.09)
     for cx_, cy_ in [
         (tx + tw / 2, ty - r_chair * 1.5),
@@ -279,27 +449,21 @@ def _draw_dining(ax, rx, ry, rw, rh):
 
 
 def _draw_kitchen(ax, rx, ry, rw, rh):
-    # Counter along south and west walls
     cth = min(rh * 0.18, 2.0)
-    # South counter
     ax.add_patch(Rectangle((rx + 0.3, ry + 0.3), rw - 0.6, cth,
                             fc="#C8C8C8", ec="#888", lw=0.6, alpha=0.80, zorder=3))
-    # West counter
     ctw_ = min(rw * 0.18, 2.0)
     ax.add_patch(Rectangle((rx + 0.3, ry + 0.3 + cth), ctw_, rh - cth - 0.6,
                             fc="#C8C8C8", ec="#888", lw=0.6, alpha=0.80, zorder=3))
-    # Sink (circle in south-west corner)
     sink_r = min(0.7, cth * 0.45)
     ax.add_patch(plt.Circle((rx + ctw_ * 0.5 + 0.3, ry + 0.3 + cth * 0.5),
                              sink_r, fc="white", ec="#555", lw=0.6, zorder=4))
 
 
 def _draw_bathroom(ax, rx, ry, rw, rh):
-    # WC (south-west)
     wc_w = min(rw * 0.45, 2.0); wc_h = min(rh * 0.42, 2.5)
     ax.add_patch(Rectangle((rx + 0.3, ry + 0.3), wc_w, wc_h,
                             fc="#E0F7FA", ec="#555", lw=0.6, alpha=0.85, zorder=3))
-    # Basin (east)
     b_w = min(rw * 0.38, 1.6); b_h = min(rh * 0.30, 1.6)
     ax.add_patch(Rectangle((rx + rw - b_w - 0.3, ry + 0.3), b_w, b_h,
                             fc="#E0F7FA", ec="#555", lw=0.6, alpha=0.85, zorder=3))
@@ -337,7 +501,6 @@ def _draw_road_label(ax: plt.Axes, W: float) -> None:
 
 def _draw_main_entrance(ax: plt.Axes, rooms: list[dict],
                          features: list[dict], W: float) -> None:
-    # Find first south-facing door in rooms
     entrance_x = W * 0.30
     for item in rooms:
         for door in item.get("doors", []):
@@ -361,16 +524,10 @@ def _draw_dimension_annotations(ax: plt.Axes, W: float, L: float) -> None:
     off = max(W, L) * 0.04
     kw  = dict(ha="center", va="center", fontsize=8.5, color="#2C3E50",
                fontweight="semibold", zorder=12)
-    # South
     ax.text(W / 2, -off, f"← {W:.0f} ft →", **kw)
-    # North
     ax.text(W / 2, L + off, f"← {W:.0f} ft →", **kw)
-    # West
-    ax.text(-off * 1.5, L / 2, f"← {L:.0f} ft →",
-            rotation=90, **kw)
-    # East
-    ax.text(W + off * 1.5, L / 2, f"← {L:.0f} ft →",
-            rotation=90, **kw)
+    ax.text(-off * 1.5, L / 2, f"← {L:.0f} ft →", rotation=90, **kw)
+    ax.text(W + off * 1.5, L / 2, f"← {L:.0f} ft →", rotation=90, **kw)
 
 
 # ---------------------------------------------------------------------------
