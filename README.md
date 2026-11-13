@@ -55,8 +55,8 @@
 
 ```bash
 # 1. Clone repository
-git clone https://github.com/your-username/Land2Home.git
-cd Land2Home
+git clone https://github.com/353Amishakumari/Land2Home-AI-Studio.git
+cd Land2Home-AI-Studio
 
 # 2. Create virtual environment
 python -m venv venv
