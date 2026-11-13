@@ -128,6 +128,7 @@ Land2Home/
 ```
 
 ---
+AMISHA KUMARI
 
 ## ⚖️ License & Disclaimer
 
