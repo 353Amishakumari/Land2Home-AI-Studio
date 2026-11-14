@@ -42,7 +42,7 @@ _CIRCULATION_KEYWORDS = (
 )
 
 _PRIVATE_KEYWORDS = (
-    "bathroom", "toilet", "wc", "store", "staircase",
+    "bathroom", "toilet", "wc", "store", "staircase", "pooja", "mandir",
 )
 
 
@@ -100,6 +100,36 @@ def _opposite_wall(wall: str) -> str:
     return {"south": "north", "north": "south", "east": "west", "west": "east"}[wall]
 
 
+def _is_exterior_wall(room: dict, wall: str, plot_width: float, plot_length: float, all_items: list[dict]) -> bool:
+    """
+    Return True only if the wall is on the building exterior perimeter
+    or faces an open amenity (Balcony, Garden, Parking, Road).
+    Strictly returns False for any interior partition wall between enclosed rooms.
+    """
+    x, y, w, h = room["x"], room["y"], room["width"], room["length"]
+    tol = 0.25
+
+    if wall == "west" and x <= tol:
+        return True
+    if wall == "east" and abs((x + w) - plot_width) <= tol:
+        return True
+    if wall == "south" and y <= tol:
+        return True
+    if wall == "north" and abs((y + h) - plot_length) <= tol:
+        return True
+
+    neighbor = _wall_neighbor(room, wall, all_items)
+    if neighbor is None:
+        return True
+
+    nname = neighbor.get("name", "").lower()
+    nkind = neighbor.get("kind", "")
+    if nkind == "amenity" or "balcony" in nname or "garden" in nname or "parking" in nname:
+        return True
+
+    return False
+
+
 # ---------------------------------------------------------------------------
 # Door re-routing: pick the best wall for a door to open into circulation
 # ---------------------------------------------------------------------------
@@ -109,11 +139,26 @@ def _best_door_wall(room: dict, preferred_wall: str, all_rooms: list[dict]) -> s
     Return the wall where the door should be drawn.
 
     Priority:
-      1. Preferred wall if it faces a circulation space.
-      2. Any other wall that faces a circulation space.
-      3. Preferred wall if it faces a non-private room.
-      4. Fall back to preferred wall unchanged.
+      1. Living Room South wall is ALWAYS Main Entrance from Parking/Road.
+      2. Preferred wall if it faces a circulation space.
+      3. Any other wall that faces a circulation space.
+      4. Preferred wall if it faces a non-private room (never Pooja/Bathroom).
+      5. Fall back to preferred wall.
     """
+    rname = room.get("name", "").lower()
+
+    # Living Room south wall door is the Main Entrance door — always keep south
+    if "living" in rname and preferred_wall == "south":
+        return "south"
+
+    # Staircase: opens into Living or Passage / Corridor
+    if "staircase" in rname:
+        for w in [preferred_wall, "east", "west", "south", "north"]:
+            nbr = _wall_neighbor(room, w, all_rooms)
+            if nbr and _is_circulation(nbr.get("name", "")):
+                return w
+        return preferred_wall
+
     seen: set[str] = set()
     walls_order = []
     for w in [preferred_wall, "south", "north", "east", "west"]:
@@ -125,12 +170,21 @@ def _best_door_wall(room: dict, preferred_wall: str, all_rooms: list[dict]) -> s
         neighbor = _wall_neighbor(room, wall, all_rooms)
         if neighbor is None and wall == preferred_wall:
             return wall          # exterior — keep as preferred
-        if neighbor is not None and _is_circulation(neighbor["name"]):
-            return wall
+        if neighbor is not None:
+            nname = neighbor.get("name", "").lower()
+            if "pooja" in nname or "mandir" in nname:
+                continue
+            if _is_circulation(neighbor["name"]):
+                return wall
 
     for wall in walls_order:
         neighbor = _wall_neighbor(room, wall, all_rooms)
-        if neighbor is None or not _is_private(neighbor["name"]):
+        if neighbor is None:
+            return wall
+        nname = neighbor.get("name", "").lower()
+        if "pooja" in nname or "mandir" in nname:
+            continue
+        if not _is_private(neighbor["name"]):
             return wall
 
     return preferred_wall
@@ -210,12 +264,12 @@ def create_2d_floorplan(rooms: list[dict],
     # ---- Draw doors (adjacency-aware) ----
     for item in all_items:
         for door in item.get("doors", []):
-            _draw_door(ax, item, door, all_items)
+            _draw_door(ax, item, door, all_items, plot_width, plot_length)
 
-    # ---- Draw windows (collision-safe) ----
+    # ---- Draw windows (collision-safe, strictly exterior) ----
     for item in all_items:
         for win in item.get("windows", []):
-            _draw_window(ax, item, win, all_items)
+            _draw_window(ax, item, win, all_items, plot_width, plot_length)
 
     # ---- Draw furniture ----
     for item in rooms:
@@ -249,10 +303,82 @@ def create_2d_floorplan(rooms: list[dict],
 
 
 # ---------------------------------------------------------------------------
+# Staircase drawing (realistic treads + directional UP arrow)
+# ---------------------------------------------------------------------------
+
+def _draw_staircase(ax: plt.Axes, item: dict) -> None:
+    """
+    Draw realistic architectural staircase step treads (parallel lines +
+    directional 'UP' arrow) inside the staircase boundary.
+    """
+    x, y, w, h = item["x"], item["y"], item["width"], item["length"]
+
+    # Base background fill
+    ax.add_patch(Rectangle((x, y), w, h,
+                           facecolor="#F4EFEA", edgecolor=ROOM_EDGE_COLOR,
+                           linewidth=2.0, zorder=2))
+
+    if h >= w:
+        # Steps run horizontally
+        n_steps = max(7, min(14, int(h / 0.85)))
+        dy = h / n_steps
+        for i in range(1, n_steps):
+            sy = y + i * dy
+            ax.plot([x + 0.1, x + w - 0.1], [sy, sy],
+                    color="#8C827A", linewidth=0.9, zorder=3)
+
+        mid_x = x + w * 0.5
+        y0 = y + h * 0.15
+        y1 = y + h * 0.82
+        ax.add_patch(plt.Circle((mid_x, y0), 0.35, color="#5D4037", zorder=4))
+        ax.annotate("", xy=(mid_x, y1), xytext=(mid_x, y0),
+                    arrowprops=dict(arrowstyle="-|>", color="#5D4037",
+                                    lw=1.5, mutation_scale=12),
+                    zorder=4)
+        ax.text(mid_x, y0 + (y1 - y0) * 0.5, "UP",
+                ha="center", va="center", fontsize=7.5, fontweight="bold",
+                color="#3E2723", backgroundcolor="#F4EFEA", zorder=5)
+    else:
+        # Steps run vertically
+        n_steps = max(7, min(14, int(w / 0.85)))
+        dx = w / n_steps
+        for i in range(1, n_steps):
+            sx = x + i * dx
+            ax.plot([sx, sx], [y + 0.1, y + h - 0.1],
+                    color="#8C827A", linewidth=0.9, zorder=3)
+
+        mid_y = y + h * 0.5
+        x0 = x + w * 0.15
+        x1 = x + w * 0.82
+        ax.add_patch(plt.Circle((x0, mid_y), 0.35, color="#5D4037", zorder=4))
+        ax.annotate("", xy=(x1, mid_y), xytext=(x0, mid_y),
+                    arrowprops=dict(arrowstyle="-|>", color="#5D4037",
+                                    lw=1.5, mutation_scale=12),
+                    zorder=4)
+        ax.text(x0 + (x1 - x0) * 0.5, mid_y, "UP",
+                ha="center", va="center", fontsize=7.5, fontweight="bold",
+                color="#3E2723", backgroundcolor="#F4EFEA", zorder=5)
+
+    # Staircase label
+    cx, cy = x + w / 2, y + h / 2
+    lbl_y = cy + (h * 0.32 if h >= w else h * 0.28)
+    dim_y = cy - (h * 0.32 if h >= w else h * 0.28)
+    ax.text(cx, lbl_y, "Staircase",
+            ha="center", va="center", fontsize=7.5, fontweight="bold",
+            color="#1A1A1A", zorder=5)
+    ax.text(cx, dim_y, f"{w:.1f} × {h:.1f} ft",
+            ha="center", va="center", fontsize=6.2, color="#555555", zorder=5)
+
+
+# ---------------------------------------------------------------------------
 # Room box + label
 # ---------------------------------------------------------------------------
 
 def _draw_room(ax: plt.Axes, item: dict) -> None:
+    if item.get("kind") == "staircase" or "staircase" in item.get("name", "").lower():
+        _draw_staircase(ax, item)
+        return
+
     x, y, w, h = item["x"], item["y"], item["width"], item["length"]
     color  = item.get("color", get_room_color(item["name"]))
     is_amenity = item.get("kind") in ("amenity",)
@@ -290,7 +416,8 @@ def _draw_room(ax: plt.Axes, item: dict) -> None:
 # ---------------------------------------------------------------------------
 
 def _draw_door(ax: plt.Axes, room: dict, door: dict,
-               all_rooms: list[dict] | None = None) -> None:
+               all_rooms: list[dict] | None = None,
+               plot_width: float = 30.0, plot_length: float = 40.0) -> None:
     x, y, w, h = room["x"], room["y"], room["width"], room["length"]
     pref_wall  = door.get("wall", "south")
     offset     = door.get("offset_pct", 0.3)
@@ -303,6 +430,17 @@ def _draw_door(ax: plt.Axes, room: dict, door: dict,
     if wall == "south":
         hx = _clamp(x + w * offset, x, x + w - dw)
         hy = y
+
+        # Bedroom doors: strictly align within Passage / Corridor X-range so they never overlap Kitchen
+        rname = room.get("name", "").lower()
+        if "bedroom" in rname and all_rooms:
+            passage = next((r for r in all_rooms if "passage" in r.get("name", "").lower() or "corridor" in r.get("name", "").lower()), None)
+            if passage:
+                pass_min = max(x, passage["x"] + 0.1)
+                pass_max = min(x + w - dw, passage["x"] + passage["width"] - dw - 0.1)
+                if pass_min <= pass_max:
+                    hx = _clamp(hx, pass_min, pass_max)
+
         line = [(hx, hy), (hx + dw, hy)]
         arc_center = (hx, hy)
         a1, a2 = 0, 90          # swing northward into room
@@ -350,27 +488,35 @@ def _draw_door(ax: plt.Axes, room: dict, door: dict,
 
 
 # ---------------------------------------------------------------------------
-# Window symbol (triple parallel lines) — collision-safe
+# Window symbol (triple parallel lines) — strictly exterior & collision-safe
 # ---------------------------------------------------------------------------
 
 def _draw_window(ax: plt.Axes, room: dict, win: dict,
-                 all_rooms: list[dict] | None = None) -> None:
+                 all_rooms: list[dict] | None = None,
+                 plot_width: float = 30.0, plot_length: float = 40.0) -> None:
     x, y, w, h = room["x"], room["y"], room["width"], room["length"]
     wall   = win.get("wall", "south")
     offset = win.get("offset_pct", 0.5)
     ww     = min(win.get("width_ft", 3.5), 5.0)
     gap    = 0.18   # spacing between the 3 lines
 
-    # Safety check — suppress or redirect window if it clashes with a door
+    # Strict Exterior-Only: Never draw on an interior partition wall between enclosed rooms
     if all_rooms:
-        if not _window_is_safe(room, wall, offset, ww, all_rooms):
-            # Try the opposite wall only if it is exterior
-            alt_wall = _opposite_wall(wall)
-            if (_wall_neighbor(room, alt_wall, all_rooms) is None
-                    and _window_is_safe(room, alt_wall, offset, ww, all_rooms)):
-                wall = alt_wall
+        if not _is_exterior_wall(room, wall, plot_width, plot_length, all_rooms):
+            # Check if this room has another wall that IS an exterior wall
+            found_wall = None
+            for cand_wall in ["north", "south", "west", "east"]:
+                if _is_exterior_wall(room, cand_wall, plot_width, plot_length, all_rooms):
+                    if _window_is_safe(room, cand_wall, offset, ww, all_rooms):
+                        found_wall = cand_wall
+                        break
+            if found_wall:
+                wall = found_wall
             else:
-                return   # suppress window rather than draw it incorrectly
+                return   # Suppress window! Never draw on an interior wall between enclosed rooms
+
+        if not _window_is_safe(room, wall, offset, ww, all_rooms):
+            return
 
     if wall in ("south", "north"):
         wy = y if wall == "south" else y + h
@@ -501,18 +647,20 @@ def _draw_road_label(ax: plt.Axes, W: float) -> None:
 
 def _draw_main_entrance(ax: plt.Axes, rooms: list[dict],
                          features: list[dict], W: float) -> None:
-    entrance_x = W * 0.30
+    entrance_x = W * 0.35
     for item in rooms:
-        for door in item.get("doors", []):
-            if door.get("wall") == "south":
-                entrance_x = item["x"] + item["width"] * door.get("offset_pct", 0.3)
-                break
+        if "living" in item.get("name", "").lower():
+            for door in item.get("doors", []):
+                if door.get("wall") == "south":
+                    entrance_x = item["x"] + item["width"] * door.get("offset_pct", 0.3)
+                    break
+            break
 
-    ax.annotate("ENTRANCE", xy=(entrance_x, -0.1),
+    ax.annotate("MAIN ENTRANCE", xy=(entrance_x, -0.1),
                 xytext=(entrance_x, -2.8),
-                fontsize=8, fontweight="bold", color="#E74C3C", ha="center",
-                arrowprops=dict(arrowstyle="-|>", color="#E74C3C", lw=1.5,
-                                mutation_scale=14),
+                fontsize=8.5, fontweight="bold", color="#C0392B", ha="center",
+                arrowprops=dict(arrowstyle="-|>", color="#C0392B", lw=1.8,
+                                mutation_scale=15),
                 zorder=12)
 
 

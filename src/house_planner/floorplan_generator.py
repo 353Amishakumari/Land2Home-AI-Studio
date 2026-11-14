@@ -97,151 +97,159 @@ def _design_a(W: float, L: float, fd: float, reqs: dict) -> list[dict]:
     y1      = round(fd + front_h, 2)
     y2      = round(y1 + svc_h, 2)
     prv_h   = round(L - y2, 2)
-
     rooms: list[dict] = []
 
     # =========================================================================
-    # 1. FRONT ZONE [y = fd to y1]: Living + (Dining) + (Pooja)
+    # 1. FRONT ZONE [y = fd to y1]: Staircase (if req) + Living + (Dining) + (Pooja)
     # =========================================================================
-    if has_dining and has_pooja:
-        pw_front = max(5.0, min(7.0, W * 0.18))
-        rem_w = W - pw_front
-        dw_front = max(7.5, rem_w * 0.38)
-        lw_front = rem_w - dw_front
+    if has_stair:
+        stair_w = round(max(5.5, min(7.0, W * 0.20)), 2)
+        rooms.append(_r("Staircase", 0, fd, stair_w, front_h,
+                        kind="staircase",
+                        doors=[_door("east", 0.5, 3.0)]))
+        rem_W = round(W - stair_w, 2)
+        fx = stair_w
+    else:
+        stair_w = 0.0
+        rem_W = W
+        fx = 0.0
 
-        rooms.append(_r("Living Room", 0, fd, lw_front, front_h,
-                        doors=[_door("south", 0.30, 3.5)],
-                        windows=[_win("south", 0.65, 4.0), _win("west", 0.5, 3.0)],
+    if has_dining and has_pooja:
+        pw_front = round(max(4.5, min(6.0, rem_W * 0.18)), 2)
+        rem_w2 = round(rem_W - pw_front, 2)
+        dw_front = round(max(7.0, rem_w2 * 0.38), 2)
+        lw_front = round(rem_w2 - dw_front, 2)
+
+        rooms.append(_r("Living Room", fx, fd, lw_front, front_h,
+                        doors=[_door("south", 0.30, 3.5), _door("north", 0.5, 3.0)],
+                        windows=[_win("south", 0.70, 4.0), _win("west" if fx == 0 else "south", 0.5, 3.0)],
                         furniture="sofa"))
-        rooms.append(_r("Dining Room", lw_front, fd, dw_front, front_h,
+        rooms.append(_r("Dining Room", fx + lw_front, fd, dw_front, front_h,
                         doors=[_door("south", 0.5, 3.0)],
                         windows=[_win("south", 0.5, 3.0)],
                         furniture="dining"))
-        rooms.append(_r("Pooja Room", lw_front + dw_front, fd, pw_front, front_h,
+        rooms.append(_r("Pooja Room", fx + lw_front + dw_front, fd, pw_front, front_h,
                         doors=[_door("west", 0.5, 2.5)],
                         windows=[_win("east", 0.5, 2.0)]))
     elif has_dining:
-        dw_front = max(8.0, W * 0.35)
-        lw_front = W - dw_front
+        dw_front = round(max(7.5, rem_W * 0.35), 2)
+        lw_front = round(rem_W - dw_front, 2)
 
-        rooms.append(_r("Living Room", 0, fd, lw_front, front_h,
-                        doors=[_door("south", 0.30, 3.5)],
-                        windows=[_win("south", 0.65, 4.0), _win("west", 0.5, 3.0)],
+        rooms.append(_r("Living Room", fx, fd, lw_front, front_h,
+                        doors=[_door("south", 0.30, 3.5), _door("north", 0.5, 3.0)],
+                        windows=[_win("south", 0.70, 4.0), _win("west" if fx == 0 else "south", 0.5, 3.0)],
                         furniture="sofa"))
-        rooms.append(_r("Dining Room", lw_front, fd, dw_front, front_h,
+        rooms.append(_r("Dining Room", fx + lw_front, fd, dw_front, front_h,
                         doors=[_door("south", 0.5, 3.0)],
                         windows=[_win("east", 0.5, 3.0)],
                         furniture="dining"))
     elif has_pooja:
-        pw_front = max(5.0, min(7.5, W * 0.20))
-        lw_front = W - pw_front
+        pw_front = round(max(4.5, min(6.5, rem_W * 0.20)), 2)
+        lw_front = round(rem_W - pw_front, 2)
 
-        rooms.append(_r("Living Room", 0, fd, lw_front, front_h,
-                        doors=[_door("south", 0.30, 3.5)],
-                        windows=[_win("south", 0.65, 4.0), _win("west", 0.5, 3.0)],
+        rooms.append(_r("Living Room", fx, fd, lw_front, front_h,
+                        doors=[_door("south", 0.30, 3.5), _door("north", 0.5, 3.0)],
+                        windows=[_win("south", 0.70, 4.0), _win("west" if fx == 0 else "south", 0.5, 3.0)],
                         furniture="sofa"))
-        rooms.append(_r("Pooja Room", lw_front, fd, pw_front, front_h,
+        rooms.append(_r("Pooja Room", fx + lw_front, fd, pw_front, front_h,
                         doors=[_door("west", 0.5, 2.5)],
                         windows=[_win("east", 0.5, 2.0)]))
     else:
-        rooms.append(_r("Living Room", 0, fd, W, front_h,
-                        doors=[_door("south", 0.28, 3.5)],
-                        windows=[_win("south", 0.68, 4.5), _win("east", 0.5, 3.0)],
+        rooms.append(_r("Living Room", fx, fd, rem_W, front_h,
+                        doors=[_door("south", 0.30, 3.5), _door("north", 0.5, 3.0)],
+                        windows=[_win("south", 0.70, 4.5), _win("east", 0.5, 3.0)],
                         furniture="sofa"))
 
     # =========================================================================
     # 2. MIDDLE SERVICE ZONE [y = y1 to y2]: Kitchen, Utility, Passage, Bath, Store
     # =========================================================================
-    uw = max(4.0, min(5.5, W * 0.13)) if has_utility else 0.0
-    sw = max(4.0, min(5.5, W * 0.13)) if has_store else 0.0
-    kw = max(6.5, min(9.5, W * 0.28))
-    pw = max(3.5, min(5.0, W * 0.14))
+    each_bed_w = round(W / max(n_b, 1), 2)
+    boundary_x = each_bed_w if n_b >= 2 else round(W * 0.45, 2)
+    pw = round(max(4.0, min(6.0, W * 0.18)), 2)
+    pass_x = round(max(4.5, boundary_x - pw * 0.5), 2)
+    if pass_x + pw > W - 4.5:
+        pass_x = round(W - 4.5 - pw, 2)
 
-    rem_bath_w = W - kw - uw - pw - sw
-    min_needed_bath = 4.0 * max(n_bt, 1)
-    if rem_bath_w < min_needed_bath:
-        # Re-balance slightly from kitchen/passage
-        deficit = min_needed_bath - rem_bath_w
-        kw = max(6.0, kw - deficit * 0.6)
-        pw = max(3.2, pw - deficit * 0.4)
-        rem_bath_w = W - kw - uw - pw - sw
-
-    # Cap bathroom width so Bathroom 1 doesn't blow up to 90+ sq.ft when n_bt=1
-    auto_store = False
-    auto_sw = 0.0
-    max_bw = 6.8 * n_bt
-    if rem_bath_w > max_bw + 3.0:
-        surplus = rem_bath_w - max_bw
-        if not has_store:
-            auto_store = True
-            auto_sw = min(5.5, surplus)
-            surplus -= auto_sw
-        if surplus > 0:
-            kw += surplus * 0.6
-            pw += surplus * 0.4
-        rem_bath_w = W - kw - uw - pw - (sw + auto_sw)
-
-    each_bw = rem_bath_w / max(n_bt, 1)
-
-    cur_x = 0.0
-    rooms.append(_r("Kitchen", cur_x, y1, kw, svc_h,
-                    doors=[_door("north", 0.5, 3.0)],
-                    windows=[_win("west", 0.5, 2.5)],
-                    furniture="kitchen"))
-    cur_x += kw
-
+    # West wing: Kitchen (+ Utility)
+    west_w = pass_x
     if has_utility:
-        rooms.append(_r("Utility", cur_x, y1, uw, svc_h,
-                        doors=[_door("west", 0.5, 2.5)],
-                        windows=[_win("south", 0.5, 2.0)]))
-        cur_x += uw
+        uw = round(max(3.8, min(5.0, west_w * 0.35)), 2)
+        kw = round(west_w - uw, 2)
+        rooms.append(_r("Kitchen", 0, y1, kw, svc_h,
+                        doors=[_door("east", 0.5, 3.0)],
+                        windows=[_win("west", 0.5, 2.5)],
+                        furniture="kitchen"))
+        rooms.append(_r("Utility", kw, y1, uw, svc_h,
+                        doors=[_door("east", 0.5, 2.5)],
+                        windows=[_win("west", 0.5, 2.0)]))
+    else:
+        kw = west_w
+        rooms.append(_r("Kitchen", 0, y1, kw, svc_h,
+                        doors=[_door("east", 0.5, 3.0)],
+                        windows=[_win("west", 0.5, 2.5)],
+                        furniture="kitchen"))
 
-    rooms.append(_r("Passage", cur_x, y1, pw, svc_h, kind="passage",
+    # Central Passage: perfectly straddles the bedroom division
+    rooms.append(_r("Passage", pass_x, y1, pw, svc_h, kind="passage",
                     doors=[_door("south", 0.5, 3.0)]))
-    cur_x += pw
 
+    # East wing: Bathrooms (+ Store Room)
+    east_w = round(W - (pass_x + pw), 2)
+    if has_store:
+        sw = round(max(3.8, min(5.0, east_w * 0.38)), 2)
+        bath_total_w = round(east_w - sw, 2)
+    else:
+        sw = 0.0
+        bath_total_w = east_w
+
+    each_bw = round(bath_total_w / max(n_bt, 1), 2)
+    cur_bx = round(pass_x + pw, 2)
     for bi in range(n_bt):
-        rooms.append(_r(f"Bathroom {bi+1}", cur_x, y1, each_bw, svc_h,
+        bw = round(cur_bx + each_bw, 2) - cur_bx if bi < n_bt - 1 else round(bath_total_w - bi * each_bw, 2)
+        rooms.append(_r(f"Bathroom {bi+1}", cur_bx, y1, bw, svc_h,
                         doors=[_door("west", 0.5, 2.5)],
-                        windows=[_win("north" if bi == 0 else "east", 0.5, 1.5)],
+                        windows=[_win("east", 0.5, 1.5)],
                         furniture="bathroom"))
-        cur_x += each_bw
+        cur_bx = round(cur_bx + bw, 2)
 
-    if has_store or auto_store:
-        label = "Store Room" if has_store else "Store / Utility"
-        rooms.append(_r(label, cur_x, y1, sw + auto_sw, svc_h,
+    if has_store:
+        rooms.append(_r("Store Room", cur_bx, y1, sw, svc_h,
                         doors=[_door("west", 0.5, 2.5)]))
-        cur_x += (sw + auto_sw)
 
     # =========================================================================
-    # 3. REAR PRIVATE ZONE [y = y2 to L]: Bedrooms, Staircase, Balcony
+    # 3. REAR PRIVATE ZONE [y = y2 to L]: Bedrooms, Balcony (Zero Voids!)
     # =========================================================================
     if has_balcony:
-        bal_h = max(3.5, min(4.5, prv_h * 0.25))
-        bed_zone_h = prv_h - bal_h
+        bal_h = round(max(3.5, min(4.5, prv_h * 0.25)), 2)
+        bed_zone_h = round(prv_h - bal_h, 2)
     else:
         bal_h = 0.0
         bed_zone_h = prv_h
 
-    if has_stair:
-        stair_w = max(5.5, min(7.5, W * 0.20))
-        rooms.append(_r("Staircase", W - stair_w, y2, stair_w, bed_zone_h,
-                        kind="staircase"))
-        bed_total_w = W - stair_w
-    else:
-        bed_total_w = W
-
-    each_bed_w = bed_total_w / max(n_b, 1)
+    # All bedrooms span the full width W cleanly without staircase interruption
     for bi in range(n_b):
-        bx = bi * each_bed_w
-        win_wall = "west" if bi == 0 else ("east" if (bi == n_b - 1 and not has_stair) else "north")
-        rooms.append(_r(f"Bedroom {bi+1}", bx, y2, each_bed_w, bed_zone_h,
-                        doors=[_door("south", 0.4, 3.0)],
+        bx = round(bi * each_bed_w, 2)
+        bw = round(W - bx, 2) if bi == n_b - 1 else each_bed_w
+        win_wall = "west" if bi == 0 else ("east" if bi == n_b - 1 else "north")
+
+        # Door strictly opens into Passage
+        if bi == 0:
+            door_cx = round(min(pass_x + pw * 0.45, bx + bw - 1.6), 2)
+            d_off = round(max(0.1, min(0.9, (door_cx - bx) / bw)), 2)
+        elif bi == 1:
+            door_cx = round(max(pass_x + pw * 0.55, bx + 1.6), 2)
+            d_off = round(max(0.1, min(0.9, (door_cx - bx) / bw)), 2)
+        else:
+            d_off = 0.4
+
+        rooms.append(_r(f"Bedroom {bi+1}", bx, y2, bw, bed_zone_h,
+                        doors=[_door("south", d_off, 3.0)],
                         windows=[_win("north", 0.5, 3.5), _win(win_wall, 0.5, 2.5)],
                         furniture="bed"))
 
+    # Rear Balcony spans FULL width W cleanly (zero voids!)
     if has_balcony:
-        rooms.append(_r("Balcony", 0, y2 + bed_zone_h, bed_total_w, bal_h,
+        rooms.append(_r("Balcony", 0, round(y2 + bed_zone_h, 2), W, bal_h,
                         kind="room", windows=[_win("north", 0.5, 6.0)]))
 
     return rooms
@@ -342,8 +350,23 @@ def _design_b(W: float, L: float, fd: float, reqs: dict) -> list[dict]:
                                 windows=[_win("west", 0.5, 1.5)],
                                 furniture="bathroom"))
 
-    # Right side: Dining / Pooja
-    if has_dining and has_pooja:
+    # Right side: Dining / Pooja / Staircase
+    if has_stair:
+        if has_dining:
+            dw = round(right_w * 0.52, 2)
+            sw = round(right_w - dw, 2)
+            rooms.append(_r("Dining Room", cx + cw, y_top, dw, mid_h,
+                            doors=[_door("west", 0.5, 3.0)],
+                            windows=[_win("north", 0.5, 3.0)],
+                            furniture="dining"))
+            rooms.append(_r("Staircase", cx + cw + dw, y_top, sw, mid_h,
+                            kind="staircase",
+                            doors=[_door("west", 0.5, 2.5)]))
+        else:
+            rooms.append(_r("Staircase", cx + cw, y_top, right_w, mid_h,
+                            kind="staircase",
+                            doors=[_door("west", 0.5, 3.0)]))
+    elif has_dining and has_pooja:
         pw = max(4.0, min(5.5, right_w * 0.35))
         dw = right_w - pw
         rooms.append(_r("Dining Room", cx + cw, y_top, dw, mid_h,
@@ -366,42 +389,36 @@ def _design_b(W: float, L: float, fd: float, reqs: dict) -> list[dict]:
         rooms.append(_r("Passage", cx + cw, y_top, right_w, mid_h, kind="passage"))
 
     # =========================================================================
-    # 3. REAR ZONE [y = y_mid to L]: Bedrooms, Corridor, Staircase, Balcony
+    # 3. REAR ZONE [y = y_mid to L]: Bedrooms, Corridor, Balcony (Zero Voids!)
     # =========================================================================
     if has_balcony:
-        bal_h = max(3.5, min(4.5, rear_h * 0.25))
-        bed_rear_h = rear_h - bal_h
+        bal_h = round(max(3.5, min(4.5, rear_h * 0.25)), 2)
+        bed_rear_h = round(rear_h - bal_h, 2)
     else:
         bal_h = 0.0
         bed_rear_h = rear_h
 
-    # Corridor and Staircase
-    if has_stair:
-        stair_h = max(5.5, min(bed_rear_h * 0.55, 8.5))
-        corr_h = (bh - bal_h) - stair_h
-        rooms.append(_r("Corridor", cx, fd, cw, corr_h, kind="passage",
-                        doors=[_door("south", 0.5, 3.0)]))
-        rooms.append(_r("Staircase", cx, fd + corr_h, cw, stair_h, kind="staircase"))
-    else:
-        rooms.append(_r("Corridor", cx, fd, cw, bh - bal_h, kind="passage",
-                        doors=[_door("south", 0.5, 3.0)]))
+    # Corridor runs full depth to rear bedrooms cleanly
+    corr_h = round(bh - bal_h, 2)
+    rooms.append(_r("Corridor", cx, fd, cw, corr_h, kind="passage",
+                    doors=[_door("south", 0.5, 3.0)]))
 
     # Bedrooms divided left and right
     n_left_beds  = n_b // 2 + (n_b % 2)
     n_right_beds = n_b - n_left_beds
 
-    each_lb = bed_rear_h / max(n_left_beds, 1)
+    each_lb = round(bed_rear_h / max(n_left_beds, 1), 2)
     for bi in range(n_left_beds):
-        by = y_mid + bi * each_lb
+        by = round(y_mid + bi * each_lb, 2)
         rooms.append(_r(f"Bedroom {bi+1}", 0, by, left_w, each_lb,
                         doors=[_door("east", 0.4, 3.0)],
                         windows=[_win("west", 0.5, 2.5)],
                         furniture="bed"))
 
     if n_right_beds > 0:
-        each_rb = bed_rear_h / n_right_beds
+        each_rb = round(bed_rear_h / n_right_beds, 2)
         for bi in range(n_right_beds):
-            by = y_mid + bi * each_rb
+            by = round(y_mid + bi * each_rb, 2)
             idx = n_left_beds + bi + 1
             rooms.append(_r(f"Bedroom {idx}", cx + cw, by, right_w, each_rb,
                             doors=[_door("west", 0.4, 3.0)],
@@ -413,8 +430,9 @@ def _design_b(W: float, L: float, fd: float, reqs: dict) -> list[dict]:
                         doors=[_door("west", 0.5, 3.0)],
                         windows=[_win("east", 0.5, 2.5)]))
 
+    # Rear Balcony spans FULL width W cleanly (zero voids!)
     if has_balcony:
-        rooms.append(_r("Balcony", 0, y_mid + bed_rear_h, W, bal_h,
+        rooms.append(_r("Balcony", 0, round(y_mid + bed_rear_h, 2), W, bal_h,
                         kind="room", windows=[_win("north", 0.5, 6.0)]))
 
     return rooms
@@ -427,9 +445,9 @@ def _design_b(W: float, L: float, fd: float, reqs: dict) -> list[dict]:
 def _design_c(W: float, L: float, fd: float, reqs: dict) -> list[dict]:
     """
     Open Living + Dining layout:
-      Zone 1 (Front):   Spacious Open Living + Dining (with Pooja Room if requested).
-      Zone 2 (Middle):  Kitchen, Utility (if requested), Passage, Bathrooms, Store Room (if requested).
-      Zone 3 (Rear):    Bedrooms, Staircase (if requested), Balcony (if requested).
+      Zone 1 (Front):   Staircase (if req), Spacious Open Living + Dining (+ Pooja).
+      Zone 2 (Middle):  Kitchen, Utility, Passage, Bathrooms, Store.
+      Zone 3 (Rear):    Bedrooms, Balcony (Zero Voids!).
 
     Guarantees strict non-overlapping room partitions.
     """
@@ -456,116 +474,119 @@ def _design_c(W: float, L: float, fd: float, reqs: dict) -> list[dict]:
     rooms: list[dict] = []
 
     # =========================================================================
-    # 1. FRONT ZONE [y = fd to y1]: Open Living + Dining (+ Pooja)
+    # 1. FRONT ZONE [y = fd to y1]: Staircase (if req) + Open Living + Dining (+ Pooja)
     # =========================================================================
+    if has_stair:
+        stair_w = round(max(5.5, min(7.0, W * 0.20)), 2)
+        rooms.append(_r("Staircase", 0, fd, stair_w, open_h,
+                        kind="staircase",
+                        doors=[_door("east", 0.5, 3.0)]))
+        rem_W = round(W - stair_w, 2)
+        fx = stair_w
+    else:
+        stair_w = 0.0
+        rem_W = W
+        fx = 0.0
+
     if has_pooja:
-        pj_w = max(5.0, min(7.5, W * 0.18))
-        rooms.append(_r("Open Living + Dining", 0, fd, W - pj_w, open_h,
-                        doors=[_door("south", 0.25, 3.5)],
-                        windows=[_win("south", 0.55, 5.0), _win("west", 0.5, 3.0)],
+        pj_w = round(max(4.5, min(6.5, rem_W * 0.18)), 2)
+        rooms.append(_r("Open Living + Dining", fx, fd, round(rem_W - pj_w, 2), open_h,
+                        doors=[_door("south", 0.25, 3.5), _door("north", 0.5, 3.0)],
+                        windows=[_win("south", 0.55, 5.0), _win("west" if fx == 0 else "south", 0.5, 3.0)],
                         furniture="sofa"))
-        rooms.append(_r("Pooja Room", W - pj_w, fd, pj_w, open_h,
+        rooms.append(_r("Pooja Room", fx + round(rem_W - pj_w, 2), fd, pj_w, open_h,
                         doors=[_door("west", 0.5, 2.5)],
                         windows=[_win("east", 0.5, 2.0)]))
     else:
-        rooms.append(_r("Open Living + Dining", 0, fd, W, open_h,
-                        doors=[_door("south", 0.25, 3.5)],
-                        windows=[_win("south", 0.55, 5.5), _win("east", 0.5, 3.5),
-                                 _win("west", 0.5, 3.0)],
+        rooms.append(_r("Open Living + Dining", fx, fd, rem_W, open_h,
+                        doors=[_door("south", 0.25, 3.5), _door("north", 0.5, 3.0)],
+                        windows=[_win("south", 0.55, 5.5), _win("east", 0.5, 3.5)],
                         furniture="sofa"))
 
     # =========================================================================
     # 2. MIDDLE SERVICE ZONE [y = y1 to y2]: Kitchen, Utility, Passage, Bath, Store
     # =========================================================================
-    uw = max(4.0, min(5.5, W * 0.13)) if has_utility else 0.0
-    sw = max(4.0, min(5.5, W * 0.13)) if has_store else 0.0
-    kw = max(6.5, min(9.5, W * 0.28))
-    pw = max(3.5, min(5.0, W * 0.14))
+    each_bed_w = round(W / max(n_b, 1), 2)
+    boundary_x = each_bed_w if n_b >= 2 else round(W * 0.45, 2)
+    pw = round(max(4.0, min(6.0, W * 0.18)), 2)
+    pass_x = round(max(4.5, boundary_x - pw * 0.5), 2)
+    if pass_x + pw > W - 4.5:
+        pass_x = round(W - 4.5 - pw, 2)
 
-    rem_bath_w = W - kw - uw - pw - sw
-    min_needed_bath = 4.0 * max(n_bt, 1)
-    if rem_bath_w < min_needed_bath:
-        deficit = min_needed_bath - rem_bath_w
-        kw = max(6.0, kw - deficit * 0.6)
-        pw = max(3.2, pw - deficit * 0.4)
-        rem_bath_w = W - kw - uw - pw - sw
-
-    # Cap bathroom width so Bathroom 1 doesn't blow up to 90+ sq.ft when n_bt=1
-    auto_store = False
-    auto_sw = 0.0
-    max_bw = 6.8 * n_bt
-    if rem_bath_w > max_bw + 3.0:
-        surplus = rem_bath_w - max_bw
-        if not has_store:
-            auto_store = True
-            auto_sw = min(5.5, surplus)
-            surplus -= auto_sw
-        if surplus > 0:
-            kw += surplus * 0.6
-            pw += surplus * 0.4
-        rem_bath_w = W - kw - uw - pw - (sw + auto_sw)
-
-    each_bw = rem_bath_w / max(n_bt, 1)
-
-    cur_x = 0.0
-    rooms.append(_r("Kitchen", cur_x, y1, kw, svc_h,
-                    doors=[_door("north", 0.5, 3.0)],
-                    windows=[_win("west", 0.5, 2.5)],
-                    furniture="kitchen"))
-    cur_x += kw
-
+    west_w = pass_x
     if has_utility:
-        rooms.append(_r("Utility", cur_x, y1, uw, svc_h,
-                        doors=[_door("west", 0.5, 2.5)],
-                        windows=[_win("south", 0.5, 2.0)]))
-        cur_x += uw
+        uw = round(max(3.8, min(5.0, west_w * 0.35)), 2)
+        kw = round(west_w - uw, 2)
+        rooms.append(_r("Kitchen", 0, y1, kw, svc_h,
+                        doors=[_door("east", 0.5, 3.0)],
+                        windows=[_win("west", 0.5, 2.5)],
+                        furniture="kitchen"))
+        rooms.append(_r("Utility", kw, y1, uw, svc_h,
+                        doors=[_door("east", 0.5, 2.5)],
+                        windows=[_win("west", 0.5, 2.0)]))
+    else:
+        kw = west_w
+        rooms.append(_r("Kitchen", 0, y1, kw, svc_h,
+                        doors=[_door("east", 0.5, 3.0)],
+                        windows=[_win("west", 0.5, 2.5)],
+                        furniture="kitchen"))
 
-    rooms.append(_r("Passage", cur_x, y1, pw, svc_h, kind="passage",
+    rooms.append(_r("Passage", pass_x, y1, pw, svc_h, kind="passage",
                     doors=[_door("south", 0.5, 3.0)]))
-    cur_x += pw
 
+    east_w = round(W - (pass_x + pw), 2)
+    if has_store:
+        sw = round(max(3.8, min(5.0, east_w * 0.38)), 2)
+        bath_total_w = round(east_w - sw, 2)
+    else:
+        sw = 0.0
+        bath_total_w = east_w
+
+    each_bw = round(bath_total_w / max(n_bt, 1), 2)
+    cur_bx = round(pass_x + pw, 2)
     for bi in range(n_bt):
-        rooms.append(_r(f"Bathroom {bi+1}", cur_x, y1, each_bw, svc_h,
+        bw = round(cur_bx + each_bw, 2) - cur_bx if bi < n_bt - 1 else round(bath_total_w - bi * each_bw, 2)
+        rooms.append(_r(f"Bathroom {bi+1}", cur_bx, y1, bw, svc_h,
                         doors=[_door("west", 0.5, 2.5)],
-                        windows=[_win("north" if bi == 0 else "east", 0.5, 1.5)],
+                        windows=[_win("east", 0.5, 1.5)],
                         furniture="bathroom"))
-        cur_x += each_bw
+        cur_bx = round(cur_bx + bw, 2)
 
-    if has_store or auto_store:
-        label = "Store Room" if has_store else "Store / Utility"
-        rooms.append(_r(label, cur_x, y1, sw + auto_sw, svc_h,
+    if has_store:
+        rooms.append(_r("Store Room", cur_bx, y1, sw, svc_h,
                         doors=[_door("west", 0.5, 2.5)]))
-        cur_x += (sw + auto_sw)
 
     # =========================================================================
-    # 3. REAR PRIVATE ZONE [y = y2 to L]: Bedrooms, Staircase, Balcony
+    # 3. REAR PRIVATE ZONE [y = y2 to L]: Bedrooms, Balcony (Zero Voids!)
     # =========================================================================
     if has_balcony:
-        bal_h = max(3.5, min(4.5, prv_h * 0.25))
-        bed_zone_h = prv_h - bal_h
+        bal_h = round(max(3.5, min(4.5, prv_h * 0.25)), 2)
+        bed_zone_h = round(prv_h - bal_h, 2)
     else:
         bal_h = 0.0
         bed_zone_h = prv_h
 
-    if has_stair:
-        stair_w = max(5.5, min(7.5, W * 0.20))
-        rooms.append(_r("Staircase", W - stair_w, y2, stair_w, bed_zone_h,
-                        kind="staircase"))
-        bed_total_w = W - stair_w
-    else:
-        bed_total_w = W
-
-    each_bed_w = bed_total_w / max(n_b, 1)
     for bi in range(n_b):
-        bx = bi * each_bed_w
-        win_wall = "west" if bi == 0 else ("east" if (bi == n_b - 1 and not has_stair) else "north")
-        rooms.append(_r(f"Bedroom {bi+1}", bx, y2, each_bed_w, bed_zone_h,
-                        doors=[_door("south", 0.4, 3.0)],
+        bx = round(bi * each_bed_w, 2)
+        bw = round(W - bx, 2) if bi == n_b - 1 else each_bed_w
+        win_wall = "west" if bi == 0 else ("east" if bi == n_b - 1 else "north")
+
+        if bi == 0:
+            door_cx = round(min(pass_x + pw * 0.45, bx + bw - 1.6), 2)
+            d_off = round(max(0.1, min(0.9, (door_cx - bx) / bw)), 2)
+        elif bi == 1:
+            door_cx = round(max(pass_x + pw * 0.55, bx + 1.6), 2)
+            d_off = round(max(0.1, min(0.9, (door_cx - bx) / bw)), 2)
+        else:
+            d_off = 0.4
+
+        rooms.append(_r(f"Bedroom {bi+1}", bx, y2, bw, bed_zone_h,
+                        doors=[_door("south", d_off, 3.0)],
                         windows=[_win("north", 0.5, 3.5), _win(win_wall, 0.5, 2.5)],
                         furniture="bed"))
 
     if has_balcony:
-        rooms.append(_r("Balcony", 0, y2 + bed_zone_h, bed_total_w, bal_h,
+        rooms.append(_r("Balcony", 0, round(y2 + bed_zone_h, 2), W, bal_h,
                         kind="room", windows=[_win("north", 0.5, 6.0)]))
 
     return rooms

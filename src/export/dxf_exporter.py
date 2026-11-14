@@ -28,6 +28,7 @@ from src.visualization.render_2d import (
     _window_is_safe,
     _wall_neighbor,
     _opposite_wall,
+    _is_exterior_wall,
 )
 
 
@@ -54,6 +55,17 @@ def _door_geometry(item: dict, door: dict, all_items: list[dict]):
     if wall == "south":
         hx = clamp(x + w * off, x, x + w - dw)
         hy = y
+
+        # Bedroom doors: strictly align within Passage / Corridor X-range
+        rname = item.get("name", "").lower()
+        if "bedroom" in rname and all_items:
+            passage = next((r for r in all_items if "passage" in r.get("name", "").lower() or "corridor" in r.get("name", "").lower()), None)
+            if passage:
+                pass_min = max(x, passage["x"] + 0.1)
+                pass_max = min(x + w - dw, passage["x"] + passage["width"] - dw - 0.1)
+                if pass_min <= pass_max:
+                    hx = clamp(hx, pass_min, pass_max)
+
         p1, p2 = (hx, hy), (hx + dw, hy)
         arc_c  = (hx, hy)
         a1, a2 = 0.0, 90.0
@@ -88,9 +100,9 @@ def _door_geometry(item: dict, door: dict, all_items: list[dict]):
     return wall, p1, p2, arc_c, dw, a1, a2
 
 
-def _window_geometry(item: dict, win: dict, all_items: list[dict]):
+def _window_geometry(item: dict, win: dict, all_items: list[dict], plot_width: float = 30.0, plot_length: float = 40.0):
     """
-    Return (wall, p1, p2) for a window after collision/interior-wall safety check,
+    Return (p1, p2) for a window after collision/interior-wall safety check,
     or None if the window should be suppressed.
     """
     x, y, w, h = item["x"], item["y"], item["width"], item["length"]
@@ -98,13 +110,21 @@ def _window_geometry(item: dict, win: dict, all_items: list[dict]):
     off    = win.get("offset_pct", 0.5)
     ww     = min(win.get("width_ft", 3.5), 5.0)
 
-    if not _window_is_safe(item, wall, off, ww, all_items):
-        alt = _opposite_wall(wall)
-        if (_wall_neighbor(item, alt, all_items) is None
-                and _window_is_safe(item, alt, off, ww, all_items)):
-            wall = alt
+    # Strictly exterior: never draw on interior partition walls between enclosed rooms
+    if not _is_exterior_wall(item, wall, plot_width, plot_length, all_items):
+        found_wall = None
+        for cand_wall in ["north", "south", "west", "east"]:
+            if _is_exterior_wall(item, cand_wall, plot_width, plot_length, all_items):
+                if _window_is_safe(item, cand_wall, off, ww, all_items):
+                    found_wall = cand_wall
+                    break
+        if found_wall:
+            wall = found_wall
         else:
-            return None   # suppress
+            return None   # suppress interior windows
+
+    if not _window_is_safe(item, wall, off, ww, all_items):
+        return None
 
     if wall in ("south", "north"):
         wy = y if wall == "south" else y + h
@@ -213,11 +233,11 @@ def export_layout_to_dxf(
                     dxfattribs={"layer": "DOOR_SWINGS"}
                 )
 
-            # --- Windows (collision-safe) ---
+            # --- Windows (strictly exterior & collision-safe) ---
             for win in item.get("windows", []):
-                result = _window_geometry(item, win, all_items)
+                result = _window_geometry(item, win, all_items, plot_width, plot_length)
                 if result is None:
-                    continue   # suppressed by collision check
+                    continue   # suppressed by collision/interior check
                 wp1, wp2 = result
                 msp.add_line(wp1, wp2, dxfattribs={"layer": "WINDOWS"})
 
@@ -295,9 +315,9 @@ def _pure_python_dxf_fallback(items: list[dict], W: float, L: float,
             lines.extend(_line(p1, p2, "DOORS"))
             lines.extend(_arc(arc_c[0], arc_c[1], dw, a1, a2, "DOOR_SWINGS"))
 
-        # Windows (collision-safe)
+        # Windows (strictly exterior & collision-safe)
         for win in item.get("windows", []):
-            result = _window_geometry(item, win, items)
+            result = _window_geometry(item, win, items, W, L)
             if result is None:
                 continue
             wp1, wp2 = result
