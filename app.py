@@ -40,58 +40,187 @@ st.markdown("""
 /* ── Google Fonts ───────────────────────────────────────── */
 @import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=Plus+Jakarta+Sans:wght@500;600;700;800&display=swap');
 
-/* ── Hide Streamlit chrome ──────────────────────────────── */
+/* ── Hide Streamlit Chrome & Clutter ─────────────────────── */
 #MainMenu { visibility: hidden; }
 footer    { visibility: hidden; }
 header    { visibility: hidden; }
 .stDeployButton { display: none; }
 div[data-testid="stDecoration"] { display: none; }
 
-/* ── Base typography & canvas ───────────────────────────── */
-html, body, [class*="css"] {
+/* ── Enforce Global Light Theme on Root Containers ────────── */
+html, body, .stApp,
+[data-testid="stApp"],
+[data-testid="stAppViewContainer"],
+[data-testid="stAppViewRoot"],
+[data-testid="stHeader"],
+.main,
+.block-container {
+    background-color: #F8FAFC !important;
+    color: #0F172A !important;
     font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
-    background-color: #F8FAFC;
+}
+
+[data-testid="stHeader"] {
+    background-color: #F8FAFC !important;
+}
+
+/* ── Enforce Crisp Light Canvas for Sidebar ──────────────── */
+section[data-testid="stSidebar"],
+[data-testid="stSidebar"] > div:first-child {
+    background-color: #FFFFFF !important;
+    border-right: 1px solid #E2E8F0 !important;
+}
+
+/* ── Force High-Contrast Text Color on Headings ──────────── */
+h1, h2, h3, h4, h5, h6,
+.stMarkdown h1, .stMarkdown h2, .stMarkdown h3, .stMarkdown h4, .stMarkdown h5, .stMarkdown h6,
+[data-testid="stMarkdownContainer"] h1,
+[data-testid="stMarkdownContainer"] h2,
+[data-testid="stMarkdownContainer"] h3,
+[data-testid="stMarkdownContainer"] h4,
+[data-testid="stMarkdownContainer"] h5,
+[data-testid="stMarkdownContainer"] h6,
+[data-testid="stHeadingWithActionElements"] h1,
+[data-testid="stHeadingWithActionElements"] h2,
+[data-testid="stHeadingWithActionElements"] h3,
+[data-testid="stHeadingWithActionElements"] h4,
+div[data-testid="stHeading"] h1,
+div[data-testid="stHeading"] h2,
+div[data-testid="stHeading"] h3,
+div[data-testid="stHeading"] h4 {
+    color: #0F172A !important;
+    font-family: 'Plus Jakarta Sans', sans-serif !important;
+    font-weight: 700 !important;
+}
+
+/* ── Body & Paragraph Typography ────────────────────────── */
+p, label, span,
+[data-testid="stMarkdownContainer"] p,
+[data-testid="stMarkdownContainer"] span,
+[data-testid="stMarkdownContainer"] li,
+.stMarkdown p, .stMarkdown span, .stMarkdown li {
     color: #0F172A;
 }
 
-/* ── Sidebar ────────────────────────────────────────────── */
-[data-testid="stSidebar"] {
-    background: linear-gradient(180deg, #0F172A 0%, #1E293B 100%);
-    border-right: 1px solid #334155;
-}
-[data-testid="stSidebar"] * { color: #CBD5E1 !important; }
-[data-testid="stSidebar"] .stRadio label { color: #E2E8F0 !important; }
-[data-testid="stSidebar"] h1,
-[data-testid="stSidebar"] h2,
-[data-testid="stSidebar"] h3 { color: #F1F5F9 !important; }
-[data-testid="stSidebar"] hr { border-color: #334155 !important; }
-[data-testid="stSidebar"] .stMarkdown p { color: #94A3B8 !important; font-size: 12px; }
-[data-testid="stSidebar"] .stCaption { color: #64748B !important; }
-[data-testid="stSidebar"] [data-testid="stMetricLabel"] { color: #94A3B8 !important; }
-[data-testid="stSidebar"] [data-testid="stMetricValue"] { color: #F1F5F9 !important; }
-[data-testid="stSidebar"] .stSuccess { background: rgba(5,150,105,0.15) !important; border-color: #059669 !important; }
-[data-testid="stSidebar"] .stInfo    { background: rgba(37,99,235,0.15) !important; border-color: #2563EB !important; }
-
-/* Sidebar nav pills */
-[data-testid="stSidebar"] .stRadio > div { gap: 2px; }
-[data-testid="stSidebar"] .stRadio label {
-    padding: 8px 12px;
-    border-radius: 8px;
-    transition: background 0.15s;
-    font-size: 13px;
-    font-weight: 500;
-}
-[data-testid="stSidebar"] .stRadio label:hover { background: rgba(255,255,255,0.08); }
-
-/* ── Main content area ──────────────────────────────────── */
-.main .block-container {
-    padding-top: 16px;
-    padding-left: 32px;
-    padding-right: 32px;
-    max-width: 1400px;
+.stCaption,
+[data-testid="stCaptionContainer"],
+[data-testid="stCaptionContainer"] p,
+.stCaption p {
+    color: #64748B !important;
 }
 
-/* ── KPI / info cards ───────────────────────────────────── */
+/* ── Form Inputs & Radio Option Text ────────────────────── */
+label,
+.stRadio label,
+.stSelectbox label,
+.stNumberInput label,
+.stTextInput label,
+.stCheckbox label,
+[data-testid="stWidgetLabel"] p,
+[data-testid="stWidgetLabel"] label,
+[data-testid="stRadio"] label,
+[data-testid="stRadio"] p,
+[data-testid="stRadio"] span,
+.stCheckbox span {
+    color: #0F172A !important;
+    font-weight: 500 !important;
+}
+
+/* ── Metric Styling & Anti-Truncation ───────────────────── */
+[data-testid="stMetricLabel"] p,
+[data-testid="stMetricLabel"] span {
+    color: #64748B !important;
+    font-size: 13px !important;
+    font-weight: 600 !important;
+}
+[data-testid="stMetricValue"] div,
+[data-testid="stMetricValue"] span {
+    color: #0F172A !important;
+    font-family: 'Plus Jakarta Sans', sans-serif !important;
+    font-weight: 800 !important;
+    overflow: visible !important;
+    white-space: normal !important;
+    text-overflow: clip !important;
+}
+
+/* ── Sidebar Component Polish ───────────────────────────── */
+section[data-testid="stSidebar"] label,
+section[data-testid="stSidebar"] p,
+section[data-testid="stSidebar"] span {
+    color: #0F172A !important;
+}
+section[data-testid="stSidebar"] .section-label {
+    color: #64748B !important;
+    border-bottom: 1px solid #E2E8F0 !important;
+    font-size: 11px !important;
+    font-weight: 700 !important;
+    letter-spacing: 0.08em !important;
+    text-transform: uppercase !important;
+    margin: 16px 0 8px 0 !important;
+    padding-bottom: 6px !important;
+}
+section[data-testid="stSidebar"] .stRadio > div {
+    gap: 3px !important;
+}
+section[data-testid="stSidebar"] .stRadio label {
+    background: transparent !important;
+    color: #1E293B !important;
+    padding: 8px 12px !important;
+    border-radius: 8px !important;
+    font-size: 13.5px !important;
+    font-weight: 500 !important;
+    transition: all 0.15s ease !important;
+}
+section[data-testid="stSidebar"] .stRadio label:hover {
+    background: #F1F5F9 !important;
+    color: #2563EB !important;
+}
+section[data-testid="stSidebar"] hr {
+    border-color: #E2E8F0 !important;
+}
+
+/* ── Unified White SaaS Card Styling ────────────────────── */
+div[data-testid="stVerticalBlockBorderWrapper"],
+.design-card-unified {
+    background: #FFFFFF !important;
+    border: 1px solid #E2E8F0 !important;
+    border-radius: 16px !important;
+    padding: 16px !important;
+    box-shadow: 0 4px 14px rgba(15, 23, 42, 0.06) !important;
+}
+
+/* ── Commercial Design Overview Table Polish ────────────── */
+[data-testid="stDataFrame"] {
+    background-color: #FFFFFF !important;
+    border: 1px solid #E2E8F0 !important;
+    border-radius: 12px !important;
+    overflow: hidden !important;
+    box-shadow: 0 1px 4px rgba(15, 23, 42, 0.05) !important;
+    font-variant-numeric: tabular-nums;
+}
+[data-testid="stDataFrame"] div[role="columnheader"] {
+    background-color: #F1F5F9 !important;
+    color: #0F172A !important;
+    font-weight: 700 !important;
+    border-bottom: 2px solid #E2E8F0 !important;
+}
+[data-testid="stDataFrame"] div[role="gridcell"] {
+    color: #0F172A !important;
+    border-bottom: 1px solid #F1F5F9 !important;
+    font-size: 13px !important;
+}
+[data-testid="stDataFrame"] th {
+    background-color: #F1F5F9 !important;
+    color: #0F172A !important;
+    font-weight: 700 !important;
+    border-bottom: 1px solid #E2E8F0 !important;
+}
+[data-testid="stDataFrame"] td {
+    color: #0F172A !important;
+    border-bottom: 1px solid #F1F5F9 !important;
+}
+
+/* ── KPI & Flow Cards ───────────────────────────────────── */
 .kpi-card {
     background: #FFFFFF;
     border: 1px solid #E2E8F0;
@@ -123,6 +252,8 @@ html, body, [class*="css"] {
     margin-top: 4px;
     font-variant-numeric: tabular-nums;
 }
+
+/* ── Badges ─────────────────────────────────────────────── */
 .badge-green  { display:inline-block; background:#DCFCE7; color:#15803D; border-radius:20px; padding:2px 10px; font-size:11px; font-weight:600; }
 .badge-blue   { display:inline-block; background:#DBEAFE; color:#1D4ED8; border-radius:20px; padding:2px 10px; font-size:11px; font-weight:600; }
 .badge-amber  { display:inline-block; background:#FEF3C7; color:#B45309; border-radius:20px; padding:2px 10px; font-size:11px; font-weight:600; }
@@ -153,7 +284,7 @@ html, body, [class*="css"] {
 .step-title { font-weight: 600; color: #0F172A; font-size: 14px; }
 .step-desc  { color: #64748B; font-size: 13px; margin-top: 2px; }
 
-/* ── Primary CTA button ─────────────────────────────────── */
+/* ── Buttons ────────────────────────────────────────────── */
 .stButton > button[kind="primary"],
 .stButton > button[type="primary"] {
     background: linear-gradient(135deg, #2563EB 0%, #1D4ED8 100%) !important;
@@ -170,6 +301,14 @@ html, body, [class*="css"] {
 .stButton > button[type="primary"]:hover {
     transform: translateY(-1px) !important;
     box-shadow: 0 4px 16px rgba(37,99,235,0.4) !important;
+}
+.stButton > button[kind="secondary"],
+.stButton > button[type="secondary"] {
+    background: #FFFFFF !important;
+    color: #0F172A !important;
+    border: 1px solid #CBD5E1 !important;
+    border-radius: 8px !important;
+    font-weight: 600 !important;
 }
 
 /* ── Tabs ───────────────────────────────────────────────── */
@@ -193,65 +332,33 @@ html, body, [class*="css"] {
     box-shadow: 0 1px 4px rgba(0,0,0,0.08) !important;
 }
 
-/* ── Dataframes / tables ────────────────────────────────── */
-[data-testid="stDataFrame"] { font-variant-numeric: tabular-nums; }
-.tabular-num { font-variant-numeric: tabular-nums; }
-
-/* ── Section divider label ──────────────────────────────── */
-.section-label {
-    font-size: 11px;
-    font-weight: 700;
-    letter-spacing: 0.08em;
-    text-transform: uppercase;
-    color: #94A3B8;
-    margin: 20px 0 8px 0;
-    padding-bottom: 6px;
-    border-bottom: 1px solid #E2E8F0;
+/* ── Expanders ──────────────────────────────────────────── */
+[data-testid="stExpander"] {
+    background: #FFFFFF !important;
+    border: 1px solid #E2E8F0 !important;
+    border-radius: 12px !important;
+}
+[data-testid="stExpander"] summary {
+    color: #0F172A !important;
+    font-weight: 600 !important;
 }
 
-/* ── Design preview card ────────────────────────────────── */
-.design-card {
-    background: #FFFFFF;
-    border: 1px solid #E2E8F0;
-    border-radius: 12px;
-    padding: 16px;
-    box-shadow: 0 1px 4px rgba(0,0,0,0.06);
-    margin-bottom: 12px;
+/* ── Preserved Dark Containers (Hero & Payment Cards) ───── */
+.hero-banner *,
+.hero-banner div,
+.hero-banner span,
+.hero-banner p {
+    color: #FFFFFF !important;
 }
-
-/* ── Vastu compliance pills ─────────────────────────────── */
-.vastu-ok   { color: #059669; font-weight: 600; }
-.vastu-warn { color: #D97706; font-weight: 600; }
-.vastu-fail { color: #DC2626; font-weight: 600; }
-
-/* ── Metric overrides ───────────────────────────────────── */
-[data-testid="stMetricValue"] {
-    font-family: 'Plus Jakarta Sans', sans-serif;
-    font-weight: 700;
-    color: #0F172A;
+.hero-banner .hero-sub {
+    color: #94A3B8 !important;
 }
-[data-testid="stMetricLabel"] { color: #64748B; font-size: 13px; }
-
-/* ── Info / warning / success boxes ────────────────────── */
-.stAlert { border-radius: 10px; }
-
-/* ── Expander ───────────────────────────────────────────── */
-details > summary {
-    font-weight: 600;
-    color: #0F172A;
-    font-size: 14px;
-}
-
-/* ── Sidebar CTA button ─────────────────────────────────── */
-.sidebar-cta button {
-    width: 100% !important;
-    background: linear-gradient(135deg, #059669, #047857) !important;
-    color: white !important;
-    border: none !important;
-    border-radius: 8px !important;
-    font-weight: 700 !important;
-    font-size: 14px !important;
-    padding: 12px !important;
+.unlock-card *,
+.unlock-card div,
+.unlock-card span,
+.unlock-card p,
+.unlock-card h3 {
+    color: #FFFFFF !important;
 }
 </style>
 """, unsafe_allow_html=True)
@@ -358,17 +465,17 @@ def render_commercial_unlock_card(feature_name: str = "Commercial Dossier & Auto
     """Renders the self-serve payment card with UPI QR and UTR validation."""
     st.markdown(
         f"""
-        <div style="background: linear-gradient(135deg, #1A3A5C 0%, #244C73 100%);
+        <div class="unlock-card" style="background: linear-gradient(135deg, #1A3A5C 0%, #244C73 100%);
                     padding: 20px; border-radius: 12px; color: white; margin-bottom: 20px;
                     border-left: 5px solid #27AE60;">
             <div style="display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap;">
                 <div>
-                    <h3 style="color: #FFFFFF; margin: 0 0 4px 0;">🔒 Unlock {feature_name}</h3>
-                    <p style="color: #D6E4F0; margin: 0; font-size: 13.5px;">
+                    <h3 style="color: #FFFFFF !important; margin: 0 0 4px 0;">🔒 Unlock {feature_name}</h3>
+                    <p style="color: #D6E4F0 !important; margin: 0; font-size: 13.5px;">
                         Full 8-Page Architectural Concept Report, Material Takeoff (BOQ), and Layered AutoCAD (.DXF) Files.
                     </p>
                 </div>
-                <div style="background: #27AE60; color: white; padding: 6px 16px; border-radius: 20px; font-weight: bold; font-size: 14px; margin-top: 8px;">
+                <div style="background: #27AE60; color: white !important; padding: 6px 16px; border-radius: 20px; font-weight: bold; font-size: 14px; margin-top: 8px;">
                     One-Time License: ₹199
                 </div>
             </div>
@@ -462,23 +569,23 @@ def render_commercial_unlock_card(feature_name: str = "Commercial Dossier & Auto
 
 
 # ============================================================
-# Sidebar — Modern Dark Navigation
+# Sidebar — Architectural Light Navigation
 # ============================================================
 with st.sidebar:
     # Brand logo / wordmark
     st.markdown("""
-    <div style="padding: 16px 4px 8px 4px;">
+    <div style="padding: 14px 4px 10px 4px;">
         <div style="display:flex; align-items:center; gap:10px; margin-bottom:4px;">
             <span style="font-size:28px;">🏠</span>
             <div>
-                <div style="font-family:'Plus Jakarta Sans',sans-serif; font-size:17px; font-weight:800; color:#F1F5F9; line-height:1.1;">Land2Home</div>
-                <div style="font-size:10px; color:#64748B; letter-spacing:0.08em; text-transform:uppercase; font-weight:500;">AI Architecture Studio</div>
+                <div style="font-family:'Plus Jakarta Sans',sans-serif; font-size:18px; font-weight:800; color:#0F172A !important; line-height:1.1;">Land2Home</div>
+                <div style="font-size:11px; color:#64748B !important; letter-spacing:0.08em; text-transform:uppercase; font-weight:600;">AI Architecture Studio</div>
             </div>
         </div>
     </div>
     """, unsafe_allow_html=True)
 
-    st.markdown('<div class="section-label" style="color:#475569;">Navigation</div>', unsafe_allow_html=True)
+    st.markdown('<div class="section-label">Navigation</div>', unsafe_allow_html=True)
 
     page = st.radio(
         "Navigate",
@@ -493,12 +600,12 @@ with st.sidebar:
     )
 
     # Project Progress tracker
-    st.markdown('<div class="section-label" style="color:#475569; margin-top:16px;">Project Progress</div>', unsafe_allow_html=True)
+    st.markdown('<div class="section-label">Project Progress</div>', unsafe_allow_html=True)
 
     def _status_pill(done: bool, label: str) -> str:
         if done:
-            return f'<div style="display:flex;align-items:center;gap:8px;padding:5px 0;"><span style="color:#10B981;font-size:14px;">✓</span><span style="color:#CBD5E1;font-size:12px;">{label}</span></div>'
-        return f'<div style="display:flex;align-items:center;gap:8px;padding:5px 0;"><span style="color:#475569;font-size:14px;">○</span><span style="color:#64748B;font-size:12px;">{label}</span></div>'
+            return f'<div style="display:flex;align-items:center;gap:8px;padding:5px 0;"><span style="color:#059669;font-weight:700;font-size:14px;">✓</span><span style="color:#0F172A;font-size:13px;font-weight:600;">{label}</span></div>'
+        return f'<div style="display:flex;align-items:center;gap:8px;padding:5px 0;"><span style="color:#94A3B8;font-size:14px;">○</span><span style="color:#64748B;font-size:13px;">{label}</span></div>'
 
     st.markdown(
         _status_pill(bool(st.session_state.measurements), "Land Measurements") +
@@ -509,7 +616,7 @@ with st.sidebar:
     )
 
     # Commercial access badge
-    st.markdown('<div class="section-label" style="color:#475569; margin-top:12px;">License</div>', unsafe_allow_html=True)
+    st.markdown('<div class="section-label">License</div>', unsafe_allow_html=True)
     if is_commercial_unlocked():
         if st.session_state.get("is_owner", False):
             st.success("👑 **Owner Mode Active**\nUnlimited Free Exports")
@@ -568,17 +675,17 @@ if page == "🏠 Dashboard":
 
     # Hero banner
     st.markdown("""
-    <div style="background: linear-gradient(135deg, #0F172A 0%, #1E3A5F 50%, #1E293B 100%);
+    <div class="hero-banner" style="background: linear-gradient(135deg, #0F172A 0%, #1E3A5F 50%, #1E293B 100%);
                 padding: 36px 40px; border-radius: 16px; margin-bottom: 28px;
                 border: 1px solid #334155; position: relative; overflow: hidden;">
         <div style="position:absolute;top:0;right:0;width:300px;height:100%;
                     background:radial-gradient(circle at 80% 50%, rgba(37,99,235,0.15) 0%, transparent 70%);
                     pointer-events:none;"></div>
         <div style="font-family:'Plus Jakarta Sans',sans-serif; font-size:32px; font-weight:800;
-                    color:#FFFFFF; margin-bottom:8px; letter-spacing:-0.5px;">
+                    color:#FFFFFF !important; margin-bottom:8px; letter-spacing:-0.5px;">
             🏠 Land2Home AI Studio
         </div>
-        <div style="color:#94A3B8; font-size:15px; margin-bottom:20px; max-width:620px;">
+        <div class="hero-sub" style="color:#94A3B8 !important; font-size:15px; margin-bottom:20px; max-width:620px;">
             Automated Indian Residential Floor Plans &nbsp;•&nbsp; 8-Direction Vastu Auditor
             &nbsp;•&nbsp; Instant BOQ Estimator &nbsp;•&nbsp; AutoCAD DXF Export
         </div>
@@ -1097,60 +1204,114 @@ elif page == "📊 Design Comparison":
         st.dataframe(pd.DataFrame(tbl_data), use_container_width=True, hide_index=True)
 
         # Previews
-        st.markdown('<div style="font-family:\'Plus Jakarta Sans\',sans-serif;font-size:18px;font-weight:700;color:#0F172A;margin:20px 0 12px 0;">Architectural Floor Plan Previews</div>', unsafe_allow_html=True)
+        st.markdown('<div style="font-family:\'Plus Jakarta Sans\',sans-serif;font-size:18px;font-weight:700;color:#0F172A;margin:24px 0 14px 0;">Architectural Floor Plan Previews</div>', unsafe_allow_html=True)
 
         prev_cols = st.columns(3)
         for col, design in zip(prev_cols, designs):
             with col:
-                st.markdown(f"""
-                <div class="design-card">
-                    <div style="font-weight:700; color:#0F172A; font-size:14px; margin-bottom:10px;">
-                        {design['design_name'].split('—')[1].strip() if '—' in design['design_name'] else design['design_name']}
+                with st.container(border=True):
+                    # Clean card title header with topology badge
+                    d_name = design["design_name"]
+                    parts = d_name.split("—")
+                    tag = parts[0].strip() if len(parts) > 1 else "Design"
+                    topo = parts[1].strip() if len(parts) > 1 else d_name
+
+                    st.markdown(f"""
+                    <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:12px; padding-bottom:8px; border-bottom:1px solid #F1F5F9;">
+                        <span style="font-family:'Plus Jakarta Sans',sans-serif; font-weight:800; color:#0F172A; font-size:15px;">
+                            {tag}
+                        </span>
+                        <span style="background:#EFF6FF; border:1px solid #BFDBFE; color:#1D4ED8; font-size:11px; font-weight:700; padding:3px 10px; border-radius:12px;">
+                            {topo}
+                        </span>
                     </div>
-                """, unsafe_allow_html=True)
-                try:
-                    fig_prev = create_2d_floorplan(
-                        design["rooms"], st.session_state.plot_width,
-                        st.session_state.plot_length, design["features"],
-                        design["design_name"],
+                    """, unsafe_allow_html=True)
+
+                    try:
+                        fig_prev = create_2d_floorplan(
+                            design["rooms"], st.session_state.plot_width,
+                            st.session_state.plot_length, design["features"],
+                            design["design_name"],
+                        )
+                        st.pyplot(fig_prev, use_container_width=True)
+                        plt.close(fig_prev)
+                    except Exception as exc:
+                        st.error(f"Preview error: {exc}")
+
+                    sc = design["score"]
+                    built_a = sum(r["width"] * r["length"] for r in design["rooms"] if r.get("kind") != "amenity")
+                    c_est = estimate_construction_cost(built_a, tier=st.session_state.get("cost_tier", "Standard"))
+                    v_audit = analyze_vastu_compliance(
+                        design["rooms"], st.session_state.plot_width, st.session_state.plot_length,
+                        plot_facing=st.session_state.get("plot_facing", "North"), features=design["features"]
                     )
-                    st.pyplot(fig_prev)
-                    plt.close(fig_prev)
-                except Exception as exc:
-                    st.error(f"Preview error: {exc}")
-                st.markdown("</div>", unsafe_allow_html=True)
 
-                sc = design["score"]
-                built_a = sum(r["width"] * r["length"] for r in design["rooms"] if r.get("kind") != "amenity")
-                c_est = estimate_construction_cost(built_a, tier=st.session_state.get("cost_tier", "Standard"))
-                v_audit = analyze_vastu_compliance(
-                    design["rooms"], st.session_state.plot_width, st.session_state.plot_length,
-                    plot_facing=st.session_state.get("plot_facing", "North"), features=design["features"]
-                )
+                    v_score = v_audit["score"]
+                    v_grade = v_audit["grade"]
+                    if v_score >= 75:
+                        v_bg, v_color, v_border = "#DCFCE7", "#15803D", "#BBF7D0"
+                    elif v_score >= 50:
+                        v_bg, v_color, v_border = "#FEF3C7", "#B45309", "#FDE68A"
+                    else:
+                        v_bg, v_color, v_border = "#FEE2E2", "#DC2626", "#FECACA"
 
-                mc1, mc2 = st.columns(2)
-                mc1.metric("Arch Score", f"{sc['total']:.1f}", f"Grade {sc['grade']}")
-                mc2.metric("Vastu Score", f"{v_audit['score']:.0f}/100", f"{v_audit['grade']}")
-                st.metric("Est. Cost", f"Rs. {c_est['total_cost_lakhs']:.2f} L", f"{st.session_state.get('cost_tier', 'Standard')} Tier")
+                    # Responsive 3-pill horizontal KPI bar (full strings without truncation)
+                    st.markdown(f"""
+                    <div style="display:flex; flex-direction:column; gap:6px; margin-top:12px;">
+                        <div style="display:flex; justify-content:space-between; align-items:center; background:#F8FAFC; border:1px solid #E2E8F0; border-radius:8px; padding:6px 10px;">
+                            <span style="font-size:11px; font-weight:600; color:#64748B; text-transform:uppercase; letter-spacing:0.04em;">Arch Score</span>
+                            <span style="font-size:12px; font-weight:700; color:#1D4ED8; background:#DBEAFE; border:1px solid #BFDBFE; padding:2px 8px; border-radius:12px;">{sc['total']:.1f}/100 • Grade {sc['grade']}</span>
+                        </div>
+                        <div style="display:flex; justify-content:space-between; align-items:center; background:#F8FAFC; border:1px solid #E2E8F0; border-radius:8px; padding:6px 10px;">
+                            <span style="font-size:11px; font-weight:600; color:#64748B; text-transform:uppercase; letter-spacing:0.04em;">Vastu Score</span>
+                            <span style="font-size:12px; font-weight:700; color:{v_color}; background:{v_bg}; border:1px solid {v_border}; padding:2px 8px; border-radius:12px;">{v_score:.0f}/100 • {v_grade}</span>
+                        </div>
+                        <div style="display:flex; justify-content:space-between; align-items:center; background:#F8FAFC; border:1px solid #E2E8F0; border-radius:8px; padding:6px 10px;">
+                            <span style="font-size:11px; font-weight:600; color:#64748B; text-transform:uppercase; letter-spacing:0.04em;">Est. Cost</span>
+                            <span style="font-size:12px; font-weight:700; color:#0F172A; background:#FFFFFF; border:1px solid #CBD5E1; padding:2px 8px; border-radius:12px;">₹{c_est['total_cost_lakhs']:.2f} Lakhs</span>
+                        </div>
+                    </div>
+                    """, unsafe_allow_html=True)
 
-        # Selection
-        st.markdown("---")
-        st.markdown('<div style="font-family:\'Plus Jakarta Sans\',sans-serif;font-size:18px;font-weight:700;color:#0F172A;margin-bottom:12px;">Select Preferred Design for Full Export</div>', unsafe_allow_html=True)
+        # Highlighted action card at the bottom for Design Selection
+        st.markdown("<br>", unsafe_allow_html=True)
+        with st.container(border=True):
+            st.markdown("""
+            <div style="display:flex; align-items:center; gap:12px; margin-bottom:14px;">
+                <div style="background:#EFF6FF; border:1px solid #BFDBFE; color:#2563EB; width:40px; height:40px; border-radius:10px; display:flex; align-items:center; justify-content:center; font-size:20px; flex-shrink:0;">
+                    🎯
+                </div>
+                <div>
+                    <div style="font-family:'Plus Jakarta Sans',sans-serif; font-size:17px; font-weight:700; color:#0F172A;">
+                        Select Preferred Design for Full Export
+                    </div>
+                    <div style="font-size:13px; color:#64748B;">
+                        Choose your preferred floor plan layout to unlock high-resolution 2D plans, 3D interactive model, AutoCAD (.DXF), and the 8-Page Commercial PDF Dossier.
+                    </div>
+                </div>
+            </div>
+            """, unsafe_allow_html=True)
 
-        design_options = {d["design_name"]: d["design_id"] for d in designs}
-        current_sel = None
-        if st.session_state.selected_design_id:
-            for d in designs:
-                if d["design_id"] == st.session_state.selected_design_id:
-                    current_sel = d["design_name"]
-                    break
+            design_options = {d["design_name"]: d["design_id"] for d in designs}
+            current_sel = None
+            if st.session_state.selected_design_id:
+                for d in designs:
+                    if d["design_id"] == st.session_state.selected_design_id:
+                        current_sel = d["design_name"]
+                        break
 
-        sel_name = st.radio("Choose design:", list(design_options.keys()),
-                            index=0 if current_sel is None else list(design_options.keys()).index(current_sel) if current_sel in design_options else 0)
+            sel_name = st.radio("Choose design topology:", list(design_options.keys()),
+                                index=0 if current_sel is None else list(design_options.keys()).index(current_sel) if current_sel in design_options else 0,
+                                label_visibility="collapsed")
 
-        if st.button("✅ Confirm Selection", type="primary"):
-            st.session_state.selected_design_id = design_options[sel_name]
-            st.success(f"✅ **{sel_name}** selected! Navigate to **📋 2D Floor Plan**, **🧊 3D Visualization**, or **📄 PDF Report**.")
+            col_act1, col_act2 = st.columns([0.25, 0.75])
+            with col_act1:
+                if st.button("✅ Confirm Selection", type="primary", key="btn_confirm_design", use_container_width=True):
+                    st.session_state.selected_design_id = design_options[sel_name]
+                    st.success(f"✅ **{sel_name}** selected!")
+            with col_act2:
+                if st.session_state.selected_design_id:
+                    st.caption("🚀 Ready for export! Navigate to **📋 2D Floor Plan**, **🧊 3D Visualization**, or **📄 PDF Report**.")
 
 
 # ============================================================
