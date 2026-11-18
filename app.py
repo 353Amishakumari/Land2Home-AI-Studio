@@ -40,19 +40,17 @@ st.markdown("""
 /* ── Google Fonts ───────────────────────────────────────── */
 @import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=Plus+Jakarta+Sans:wght@500;600;700;800&display=swap');
 
-/* ── Hide Streamlit Chrome & Clutter ─────────────────────── */
-#MainMenu { visibility: hidden; }
-footer    { visibility: hidden; }
-header    { visibility: hidden; }
-.stDeployButton { display: none; }
-div[data-testid="stDecoration"] { display: none; }
+/* ── Hide Only Non-Essential Streamlit Chrome ────────────── */
+#MainMenu { visibility: hidden !important; }
+footer    { visibility: hidden !important; }
+.stDeployButton { display: none !important; }
+div[data-testid="stDecoration"] { display: none !important; }
 
 /* ── Enforce Global Light Theme on Root Containers ────────── */
 html, body, .stApp,
 [data-testid="stApp"],
 [data-testid="stAppViewContainer"],
 [data-testid="stAppViewRoot"],
-[data-testid="stHeader"],
 .main,
 .block-container {
     background-color: #F8FAFC !important;
@@ -60,8 +58,80 @@ html, body, .stApp,
     font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
 }
 
+/* ── Transparent Header & Prominent Sidebar Toggle Arrow ──── */
+header[data-testid="stHeader"],
 [data-testid="stHeader"] {
-    background-color: #F8FAFC !important;
+    background: transparent !important;
+    color: #0F172A !important;
+    z-index: 999990 !important;
+}
+
+/* Sidebar toggle button (Pill styling: visible blue background & white icon) */
+[data-testid="collapsedControl"],
+[data-testid="stSidebarCollapsedControl"],
+[data-testid="stSidebarCollapseButton"],
+button[data-testid="stSidebarCollapsedControl"],
+button[data-testid="collapsedControl"],
+[data-testid="stSidebarCollapsedControl"] button,
+[data-testid="collapsedControl"] button {
+    display: inline-flex !important;
+    align-items: center !important;
+    justify-content: center !important;
+    visibility: visible !important;
+    opacity: 1 !important;
+    background: #2563EB !important;
+    color: #FFFFFF !important;
+    border-radius: 8px !important;
+    border: none !important;
+    cursor: pointer !important;
+    transition: all 0.2s ease !important;
+}
+
+[data-testid="stSidebarCollapsedControl"] button,
+[data-testid="collapsedControl"] button,
+button[data-testid="stSidebarCollapsedControl"],
+button[data-testid="collapsedControl"] {
+    background: #2563EB !important;
+    color: #FFFFFF !important;
+    padding: 6px 12px !important;
+    box-shadow: 0 2px 10px rgba(37, 99, 235, 0.35) !important;
+}
+
+[data-testid="collapsedControl"]:hover,
+[data-testid="stSidebarCollapsedControl"]:hover,
+button[data-testid="stSidebarCollapsedControl"]:hover,
+[data-testid="collapsedControl"] button:hover,
+[data-testid="stSidebarCollapsedControl"] button:hover {
+    background: #1D4ED8 !important;
+    transform: scale(1.05) !important;
+}
+
+/* Ensure SVG arrow icon inside toggle button is white & visible */
+[data-testid="collapsedControl"] svg,
+[data-testid="stSidebarCollapsedControl"] svg,
+button[data-testid="stSidebarCollapsedControl"] svg,
+button[data-testid="collapsedControl"] svg {
+    fill: #FFFFFF !important;
+    color: #FFFFFF !important;
+    stroke: #FFFFFF !important;
+}
+
+/* Sidebar collapse button when sidebar is open */
+section[data-testid="stSidebar"] button[data-testid="stSidebarCollapseButton"],
+section[data-testid="stSidebar"] button[kind="header"] {
+    color: #64748B !important;
+    background: #F1F5F9 !important;
+    border-radius: 6px !important;
+}
+section[data-testid="stSidebar"] button[data-testid="stSidebarCollapseButton"]:hover,
+section[data-testid="stSidebar"] button[kind="header"]:hover {
+    color: #0F172A !important;
+    background: #E2E8F0 !important;
+}
+section[data-testid="stSidebar"] button[data-testid="stSidebarCollapseButton"] svg,
+section[data-testid="stSidebar"] button[kind="header"] svg {
+    fill: #475569 !important;
+    color: #475569 !important;
 }
 
 /* ── Enforce Crisp Light Canvas for Sidebar ──────────────── */
@@ -706,6 +776,18 @@ if page == "🏠 Dashboard":
                          color:#FCD34D; border-radius:20px; padding:4px 14px; font-size:12px; font-weight:600;">
                 ☸️ 8-Direction Vastu Audit
             </span>
+        </div>
+    </div>
+    """, unsafe_allow_html=True)
+
+    # Mobile-Friendly Quick Prompt / Helper Banner
+    st.markdown("""
+    <div style="background: #EFF6FF; border: 1px solid #BFDBFE; border-left: 4px solid #2563EB;
+                border-radius: 10px; padding: 12px 18px; margin-bottom: 24px;
+                display: flex; align-items: center; gap: 12px; box-shadow: 0 1px 3px rgba(37,99,235,0.06);">
+        <span style="font-size: 20px; flex-shrink: 0;">👈</span>
+        <div style="font-size: 13.5px; font-weight: 600; color: #1E40AF; line-height: 1.4;">
+            Click the top-left arrow (<strong>&gt;</strong>) or open the Inputs Panel to enter Plot Dimensions, Vastu Facing, and Generate Floor Plans.
         </div>
     </div>
     """, unsafe_allow_html=True)
