@@ -998,10 +998,10 @@ elif page == "📐 Land Measurement":
         col_up1, col_up2 = st.columns([0.6, 0.4])
         with col_up1:
             uploaded_file = st.file_uploader(
-                "Upload plot image or hand-drawn sketch",
-                type=["png", "jpg", "jpeg"],
+                "Upload plot image, sketch, or PDF survey sheet",
+                type=["png", "jpg", "jpeg", "webp", "pdf"],
                 key="land_img_uploader",
-                help="Supports site photos, satellite screenshots, or paper drawings."
+                help="Supports site photos, satellite screenshots, paper drawings, and PDF survey/deed sheets."
             )
         with col_up2:
             detect_mode = st.selectbox(
@@ -1018,11 +1018,35 @@ elif page == "📐 Land Measurement":
             blur_val = st.slider("Denoise filter strength", min_value=3, max_value=9, value=5, step=2)
 
         if uploaded_file is not None:
-            try:
-                img_rgb, img_gray = load_and_preprocess_image(uploaded_file)
-                st.session_state["raw_plot_image"] = img_rgb
-            except Exception as e:
-                st.error(f"Error loading image: {e}")
+            # --- PDF-to-image conversion (render page 1 at 200 DPI) ---
+            _file_for_cv = uploaded_file
+            if uploaded_file.name.lower().endswith(".pdf"):
+                try:
+                    import fitz  # PyMuPDF
+                    pdf_bytes = uploaded_file.read()
+                    pdf_doc = fitz.open(stream=pdf_bytes, filetype="pdf")
+                    page = pdf_doc[0]
+                    pix = page.get_pixmap(dpi=200)
+                    from PIL import Image as _PILImage
+                    _pil_img = _PILImage.frombytes("RGB", [pix.width, pix.height], pix.samples)
+                    pdf_doc.close()
+                    _file_for_cv = _pil_img
+                    st.info("📄 PDF survey sheet detected — Page 1 rendered at 200 DPI for boundary detection.")
+                except ImportError:
+                    st.error("⚠️ PyMuPDF (fitz) is not installed. Run `pip install PyMuPDF` to enable PDF upload support.")
+                    _file_for_cv = None
+                except Exception as pdf_err:
+                    st.error(f"⚠️ Failed to render PDF: {pdf_err}")
+                    _file_for_cv = None
+
+            if _file_for_cv is not None:
+                try:
+                    img_rgb, img_gray = load_and_preprocess_image(_file_for_cv)
+                    st.session_state["raw_plot_image"] = img_rgb
+                except Exception as e:
+                    st.error(f"Error loading image: {e}")
+                    img_rgb = None
+            else:
                 img_rgb = None
 
             if img_rgb is not None:
@@ -1101,9 +1125,33 @@ elif page == "📐 Land Measurement":
 
                         st.write(f"**Individual Boundary Lengths (ft):** {', '.join([f'Side {i+1}: {l:.1f} ft' for i, l in enumerate(cal['side_lengths_ft'])])}")
 
+                        # --- Verified Final Dimensions (editable override) ---
+                        st.markdown("---")
+                        st.markdown("##### ✏️ Verified Final Dimensions")
+                        _cal_w = float(cal["plot_width"])
+                        _cal_l = float(cal["plot_length"])
+                        _default_w = _cal_w if _cal_w >= 15.0 else 30.0
+                        _default_l = _cal_l if _cal_l >= 20.0 else 40.0
+                        if _cal_w < 15.0 or _cal_l < 20.0:
+                            st.info(
+                                "⚠️ Detected dimensions appear narrow (possible multi-plot survey map). "
+                                "Override values below are defaulted to 30×40 ft — adjust to match your actual plot."
+                            )
+                        vf_col1, vf_col2 = st.columns(2)
+                        with vf_col1:
+                            verified_w = st.number_input(
+                                "Verified Final Width (ft)", min_value=5.0, max_value=500.0,
+                                value=_default_w, step=1.0, key="verified_width_override"
+                            )
+                        with vf_col2:
+                            verified_l = st.number_input(
+                                "Verified Final Length (ft)", min_value=5.0, max_value=500.0,
+                                value=_default_l, step=1.0, key="verified_length_override"
+                            )
+
                         if st.button("🚀 Transfer Detected Plot to House Planner", type="primary", key="btn_use_detected_plot"):
-                            pw_cal = float(cal["plot_width"])
-                            pl_cal = float(cal["plot_length"])
+                            pw_cal = float(verified_w)
+                            pl_cal = float(verified_l)
                             _invalidate_designs()
                             st.session_state.plot_width = pw_cal
                             st.session_state.plot_length = pl_cal
@@ -1128,7 +1176,7 @@ elif page == "📐 Land Measurement":
 
         W = st.session_state.plot_width
         L = st.session_state.plot_length
-        fig, ax = plt.subplots(figsize=(6, 4))
+        fig, ax = plt.subplots(figsize=(4.2, 4.2), dpi=110)
         ax.set_facecolor("#F8FAFC")
         fig.patch.set_facecolor("#F8FAFC")
         from matplotlib.patches import Rectangle as MRect
@@ -1140,7 +1188,9 @@ elif page == "📐 Land Measurement":
         ax.set_xlim(-3, W+3); ax.set_ylim(-3, L+3)
         ax.set_aspect("equal"); ax.axis("off")
         ax.set_title("Plot Boundary Diagram", fontsize=12, fontweight="bold", color="#0F172A", pad=10)
-        st.pyplot(fig); plt.close(fig)
+        _bd_col1, _bd_col2, _bd_col3 = st.columns([1, 2, 1])
+        with _bd_col2:
+            st.pyplot(fig, use_container_width=False); plt.close(fig)
 
 
 # ============================================================

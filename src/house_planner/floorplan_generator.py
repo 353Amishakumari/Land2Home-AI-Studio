@@ -22,8 +22,8 @@ from .constraints import check_rectangular_layout, dimension_sanity_check, conne
 # Minimum plot dimensions required per BHK
 # ---------------------------------------------------------------------------
 _MIN_DIMS: dict[int, tuple[float, float]] = {
-    1: (20.0, 25.0),
-    2: (25.0, 32.0),
+    1: (15.0, 25.0),
+    2: (15.0, 30.0),
     3: (28.0, 38.0),
     4: (32.0, 44.0),
 }
