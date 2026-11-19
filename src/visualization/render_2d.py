@@ -235,7 +235,8 @@ def create_2d_floorplan(rooms: list[dict],
                          plot_width: float,
                          plot_length: float,
                          features: list[dict] | None = None,
-                         design_name: str = "") -> plt.Figure:
+                         design_name: str = "",
+                         plot_facing: str = "North") -> plt.Figure:
     """
     Render a professional-quality 2D architectural concept plan.
 
@@ -245,6 +246,7 @@ def create_2d_floorplan(rooms: list[dict],
         plot_length:  total plot length in feet (south-north).
         features:     parking / garden amenity dicts.
         design_name:  shown in the figure title.
+        plot_facing:  orientation ("North", "South", "East", "West").
 
     Returns:
         matplotlib Figure object (caller must call st.pyplot() or fig.savefig()).
@@ -283,14 +285,16 @@ def create_2d_floorplan(rooms: list[dict],
     # ---- Annotations ----
     _draw_main_entrance(ax, rooms, features, plot_width)
     _draw_dimension_annotations(ax, plot_width, plot_length)
-    _draw_north_arrow(ax, plot_width, plot_length)
+    _draw_north_arrow(ax, plot_width, plot_length, plot_facing=plot_facing)
     _draw_road_label(ax, plot_width)
     _draw_legend(ax, plot_width, plot_length)
 
     # ---- Axes formatting ----
     pad = max(plot_width, plot_length) * 0.08
     ax.set_xlim(-pad * 1.5, plot_width + max(plot_width, plot_length) * 0.42)
-    ax.set_ylim(-pad * 1.4, plot_length + pad * 1.2)
+    ymin = min(-5.0, -pad * 1.6)
+    ymax = plot_length + max(pad * 1.2, 3.0)
+    ax.set_ylim(ymin, ymax)
     ax.axis("off")
 
     title = f"Land2Home AI Studio — 2D Concept Floor Plan  |  {plot_width:.0f} × {plot_length:.0f} ft"
@@ -619,16 +623,54 @@ def _draw_bathroom(ax, rx, ry, rw, rh):
 # North arrow
 # ---------------------------------------------------------------------------
 
-def _draw_north_arrow(ax: plt.Axes, W: float, L: float) -> None:
-    px = W + max(W, L) * 0.065
+def _draw_north_arrow(ax: plt.Axes, W: float, L: float, plot_facing: str = "North") -> None:
+    px = W + max(W, L) * 0.08
     py = L * 0.75
     arrow_len = max(W, L) * 0.07
-    ax.annotate("", xy=(px, py + arrow_len), xytext=(px, py),
+
+    facing = plot_facing.strip().capitalize() if plot_facing else "North"
+    if facing == "North":
+        # Entrance at bottom = North -> N arrow points DOWN (↓)
+        xy = (px, py - arrow_len)
+        xytext = (px, py)
+        text_pos = (px, py - arrow_len - 0.7)
+        va = "top"
+        ha = "center"
+    elif facing == "South":
+        # Entrance at bottom = South -> N arrow points UP (↑)
+        xy = (px, py + arrow_len)
+        xytext = (px, py)
+        text_pos = (px, py + arrow_len + 0.5)
+        va = "bottom"
+        ha = "center"
+    elif facing == "East":
+        # Entrance at bottom = East -> N arrow points LEFT (←)
+        xy = (px - arrow_len, py)
+        xytext = (px, py)
+        text_pos = (px - arrow_len - 0.7, py)
+        va = "center"
+        ha = "right"
+    elif facing == "West":
+        # Entrance at bottom = West -> N arrow points RIGHT (→)
+        xy = (px + arrow_len, py)
+        xytext = (px, py)
+        text_pos = (px + arrow_len + 0.7, py)
+        va = "center"
+        ha = "left"
+    else:
+        # Default North (↓)
+        xy = (px, py - arrow_len)
+        xytext = (px, py)
+        text_pos = (px, py - arrow_len - 0.7)
+        va = "top"
+        ha = "center"
+
+    ax.annotate("", xy=xy, xytext=xytext,
                 arrowprops=dict(arrowstyle="-|>", color="#1A1A1A",
-                                lw=1.6, mutation_scale=16),
+                                lw=1.8, mutation_scale=16),
                 zorder=12)
-    ax.text(px, py + arrow_len + 0.5, "N", ha="center", va="bottom",
-            fontsize=10, fontweight="bold", color="#1A1A1A", zorder=12)
+    ax.text(text_pos[0], text_pos[1], "N", ha=ha, va=va,
+            fontsize=10.5, fontweight="bold", color="#1A1A1A", zorder=12)
 
 
 # ---------------------------------------------------------------------------
@@ -636,8 +678,8 @@ def _draw_north_arrow(ax: plt.Axes, W: float, L: float) -> None:
 # ---------------------------------------------------------------------------
 
 def _draw_road_label(ax: plt.Axes, W: float) -> None:
-    ax.annotate("ROAD  ⟶", xy=(W * 0.5, -0.6), xytext=(W * 0.5, -0.6),
-                ha="center", va="top", fontsize=9, color="#C0392B",
+    ax.annotate("ROAD  ⟶", xy=(W * 0.5, -2.6), xytext=(W * 0.5, -2.6),
+                ha="center", va="center", fontsize=9, color="#C0392B",
                 fontweight="bold", zorder=12)
 
 
@@ -657,7 +699,7 @@ def _draw_main_entrance(ax: plt.Axes, rooms: list[dict],
             break
 
     ax.annotate("MAIN ENTRANCE", xy=(entrance_x, -0.1),
-                xytext=(entrance_x, -2.8),
+                xytext=(entrance_x, -3.8),
                 fontsize=8.5, fontweight="bold", color="#C0392B", ha="center",
                 arrowprops=dict(arrowstyle="-|>", color="#C0392B", lw=1.8,
                                 mutation_scale=15),
@@ -672,7 +714,7 @@ def _draw_dimension_annotations(ax: plt.Axes, W: float, L: float) -> None:
     off = max(W, L) * 0.04
     kw  = dict(ha="center", va="center", fontsize=8.5, color="#2C3E50",
                fontweight="semibold", zorder=12)
-    ax.text(W / 2, -off, f"← {W:.0f} ft →", **kw)
+    ax.text(W / 2, -1.2, f"← {W:.0f} ft →", **kw)
     ax.text(W / 2, L + off, f"← {W:.0f} ft →", **kw)
     ax.text(-off * 1.5, L / 2, f"← {L:.0f} ft →", rotation=90, **kw)
     ax.text(W + off * 1.5, L / 2, f"← {L:.0f} ft →", rotation=90, **kw)

@@ -1364,6 +1364,7 @@ elif page == "📊 Design Comparison":
                             design["rooms"], st.session_state.plot_width,
                             st.session_state.plot_length, design["features"],
                             design["design_name"],
+                            plot_facing=st.session_state.get("plot_facing", "North"),
                         )
                         st.pyplot(fig_prev, use_container_width=True)
                         plt.close(fig_prev)
@@ -1500,6 +1501,7 @@ elif page == "📋 2D Floor Plan":
                     st.session_state.plot_length,
                     design["features"],
                     design["design_name"],
+                    plot_facing=st.session_state.get("plot_facing", "North"),
                 )
                 st.pyplot(fig, use_container_width=True)
 

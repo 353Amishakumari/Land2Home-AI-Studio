@@ -503,7 +503,8 @@ def generate_pdf_report(
     try:
         from src.visualization.render_2d import create_2d_floorplan
         fig_2d = create_2d_floorplan(rooms, plot_width, plot_length,
-                                     features, design.get("design_name", ""))
+                                     features, design.get("design_name", ""),
+                                     plot_facing=facing)
         story.append(_fig_to_image(fig_2d, 6.5 * inch, 5.8 * inch))
     except Exception as exc:
         story.append(Paragraph(f"[2D plan could not be rendered: {exc}]", cs["Small"]))

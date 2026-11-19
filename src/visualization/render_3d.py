@@ -238,11 +238,13 @@ def create_matplotlib_3d_figure(rooms: list[dict],
         )
         ax.add_collection3d(poly)
 
-        # Label at ceiling height
+        # Label on top roof plane with solid white pill so front walls never obscure room names
         ax.text(
-            x + w / 2, y + l / 2, h + 0.3,
-            f"{item['name']}\n{w:.0f}×{l:.0f}ft",
-            fontsize=6.5, ha="center", va="center", color="#1A1A1A", fontweight="semibold"
+            x + w / 2, y + l / 2, h + 0.2,
+            f"{item['name']}\n{w:.0f}×{l:.0f} ft",
+            fontsize=7.0, ha="center", va="center", color="#0F172A",
+            fontweight="bold", zorder=10,
+            bbox=dict(facecolor='white', alpha=0.9, edgecolor='#CBD5E1', pad=1.5)
         )
 
     # Plot boundary lines

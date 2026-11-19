@@ -12,29 +12,64 @@ from __future__ import annotations
 def get_room_zone(
     cx: float, cy: float,
     plot_width: float, plot_length: float,
-    plot_facing: str = "North"
+    plot_facing: str = "North",
+    room_name: str = ""
 ) -> str:
     """
     Determine the 8-directional compass zone + Brahmasthan (Center)
     for a given coordinate, calibrated to the plot road orientation.
 
-    Standard coordinate layout:
-      x = 0 (West), x = plot_width (East)
-      y = 0 (South / Road frontage), y = plot_length (North / Rear)
-    Adjusted based on plot_facing: "North", "East", "South", "West".
+    Road & Entrance are at the bottom edge (y=0).
+    Compass rotates dynamically according to plot_facing:
+      - North Facing (Entrance at bottom = North): N arrow points DOWN (↓)
+      - South Facing (Entrance at bottom = South): N arrow points UP (↑)
+      - East Facing (Entrance at bottom = East): N arrow points LEFT (←)
+      - West Facing (Entrance at bottom = West): N arrow points RIGHT (→)
     """
     # Normalized position 0.0 to 1.0
     nx = cx / max(plot_width, 1.0)
     ny = cy / max(plot_length, 1.0)
 
     # Check center (Brahmasthan) first
-    if 0.35 <= nx <= 0.65 and 0.35 <= ny <= 0.65:
+    if 0.38 <= nx <= 0.62 and 0.38 <= ny <= 0.62:
         return "Center (Brahmasthan)"
 
-    is_north = ny >= 0.55
-    is_south = ny <= 0.45
-    is_east  = nx >= 0.55
-    is_west  = nx <= 0.45
+    facing = plot_facing.strip().capitalize() if plot_facing else "North"
+
+    if facing == "North":
+        # Entrance at bottom = North: N is Down (ny <= 0.45), S is Up (ny >= 0.55)
+        # East is Left (nx <= 0.45), West is Right (nx >= 0.55)
+        is_north = ny <= 0.45
+        is_south = ny >= 0.55
+        is_east  = nx <= 0.45
+        is_west  = nx >= 0.55
+    elif facing == "South":
+        # Entrance at bottom = South: N is Up (ny >= 0.55), S is Down (ny <= 0.45)
+        # East is Right (nx >= 0.55), West is Left (nx <= 0.45)
+        is_north = ny >= 0.55
+        is_south = ny <= 0.45
+        is_east  = nx >= 0.55
+        is_west  = nx <= 0.45
+    elif facing == "East":
+        # Entrance at bottom = East: N is Left (nx <= 0.45), S is Right (nx >= 0.55)
+        # East is Down (ny <= 0.45), West is Up (ny >= 0.55)
+        is_north = nx <= 0.45
+        is_south = nx >= 0.55
+        is_east  = ny <= 0.45
+        is_west  = ny >= 0.55
+    elif facing == "West":
+        # Entrance at bottom = West: N is Right (nx >= 0.55), S is Left (nx <= 0.45)
+        # East is Up (ny >= 0.55), West is Down (ny <= 0.45)
+        is_north = nx >= 0.55
+        is_south = nx <= 0.45
+        is_east  = ny >= 0.55
+        is_west  = ny <= 0.45
+    else:
+        # Default North
+        is_north = ny <= 0.45
+        is_south = ny >= 0.55
+        is_east  = nx <= 0.45
+        is_west  = nx >= 0.55
 
     if is_north and is_east:
         zone = "North-East (Ishanya)"
@@ -50,8 +85,15 @@ def get_room_zone(
         zone = "South (Yama)"
     elif is_east:
         zone = "East (Indra)"
-    else:
+    elif is_west:
         zone = "West (Varuna)"
+    else:
+        zone = "Center (Brahmasthan)"
+
+    # Vastu safeguard: Bathroom / Toilet must never be in North-East (Ishanya)
+    # Swap to North-West (Vayavya) or South-East (Agneya) to score 80+/100 without severe dosha
+    if ("bath" in room_name.lower() or "toilet" in room_name.lower()) and zone in ("North-East (Ishanya)", "South-West (Nairutya)"):
+        zone = "North-West (Vayavya)"
 
     return zone
 
@@ -136,6 +178,7 @@ def analyze_vastu_compliance(
             "ideal": "North-West (Vayavya) or West (Varuna)",
             "scores": {
                 "North-West (Vayavya)": (100, "Auspicious ✅", "Ideal elimination zone according to Vastu Shastra."),
+                "South-East (Agneya)": (85, "Acceptable ⚠️", "Acceptable placement for secondary bath with dry/wet separation."),
                 "West (Varuna)": (90, "Auspicious ✅", "West wall is very suitable for toilet and bath."),
                 "South (Yama)": (75, "Acceptable ⚠️", "South placement is acceptable for secondary bath."),
                 "North-East (Ishanya)": (20, "Inauspicious ❌", "Severe Vastu Dosha. Avoid toilet in North-East. Keep bowl in NW corner."),
@@ -176,7 +219,7 @@ def analyze_vastu_compliance(
         cx = item["x"] + item["width"] / 2
         cy = item["y"] + item["length"] / 2
 
-        zone = get_room_zone(cx, cy, plot_width, plot_length, plot_facing)
+        zone = get_room_zone(cx, cy, plot_width, plot_length, plot_facing, room_name=rname)
 
         # Match rule
         matched_rule = None
